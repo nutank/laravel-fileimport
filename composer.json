@@ -1,0 +1,14 @@
+{
+    "name": "ajency/laravel-fileimport",
+    "description": "This packag allows to insert large set of file data  into multiple tables",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "ajency",
+            "email": "parag@ajency.in"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}

@@ -6,18 +6,73 @@
 namespace Ajency\Ajfileimport\Controllers;
 
 use Ajency\Ajfileimport\Helpers\AjCsvFileImport;
+use Ajency\Ajfileimport\Helpers\AjImportlibs;
 use Ajency\Ajfileimport\Helpers\AjTable;
-/*use App\Jobs\AjImportDataJob;*/
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-//use Ajency\Ajfileimport\jobs\AjImportDataJob;
 use Illuminate\Support\Facades\Storage; //test
 use Log;
-//test
 
 class AjFileImportController extends Controller
 {
+
+    /**
+     * Shows the upload file.
+     *
+     * @return     <type>  ( description_of_the_return_value )
+     */
+    public function showUploadFile()
+    {
+
+        return view('ajfileimport::index');
+
+    }
+
+    /**
+     * Uploads a file.
+     *
+     * @param      \Illuminate\Http\Request  $request  The request
+     */
+    public function uploadFile(Request $request)
+    {
+        $aj_file_import = new AjCsvFileImport();
+
+        $aj_file_import->init($request);
+
+    }
+
+    /**
+     * Gets the error logs.
+     */
+    public function getErrorLogs()
+    {
+        $aj_file_import = new AjCsvFileImport();
+
+        $result = $aj_file_import->sendErrorLogFile();
+    }
+
+    public function downloadTemptableDataCsv()
+    {
+
+        $temp_tablename = config('ajimportdata.temptablename');
+
+        $aj_table = new AjTable($temp_tablename);
+
+        $res = $aj_table->downloadTableDataAsCsv();
+        return $res;
+
+    }
+
+    /**
+    ##########################################Test Functions############################################
+     */
+
+    public function testSchedule()
+    {
+        $aj_file_import = new AjCsvFileImport();
+
+        $result = $aj_file_import->testSchedule();
+    }
 
     /**
      * { item_description }
@@ -54,38 +109,30 @@ class AjFileImportController extends Controller
         echo "<pre>";
         print_r($table->getTableSchema());
 
-    } 
-
-    /**
-     * Reads a file.
-     */
-    public function showUploadFile()
-    {
-
-        return view('ajfileimport::index');
-
     }
 
-    public function uploadFile(Request $request)
+    public function testConfigTableExists()
     {
         $aj_file_import = new AjCsvFileImport();
 
-        $aj_file_import->init($request);
+        echo "<br/> Checking if tables from configuration file exists in database....";
+        $result = $aj_file_import->checkIfAllConfigTablesExists();
+
+        if ($result == true) {
+            echo " Passed ";
+        } else {
+            echo " Failed. <br/> Please correct the table names mentioned in config file.";
+
+            exit();
+        }
 
     }
 
-    public function getErrorLogs(){
-        $aj_file_import = new AjCsvFileImport();
+    public function testSendmail()
+    {
+        $import_libs = new AjImportlibs();
 
-        $result = $aj_file_import->sendErrorLogFile();
+        $import_libs->sendMail();
     }
-
-    public function testSchedule(){
-        $aj_file_import = new AjCsvFileImport();
-
-        $result = $aj_file_import->testSchedule();   
-    }
-
- 
 
 }

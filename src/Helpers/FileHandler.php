@@ -29,6 +29,16 @@ class FileHandler
 
     }
 
+    public function getErrors()
+    {
+        $this->errors;
+    }
+
+    public function getLogs()
+    {
+        return $this->logs;
+    }
+
     public function storeFile($request)
     {
 
@@ -46,7 +56,10 @@ class FileHandler
         $new_file_name = 'ajimportfile' . date('d_m_Y_H_i_s') . '.csv';
         $folder        = storage_path('app/Ajency/Ajfileimport/Files/');
 
-        $this->createDirectoryIfDontExists($folder);
+        $import_libs = new AjImportlibs();
+
+        //$this->createDirectoryIfDontExists($folder);
+        $import_libs->createDirectoryIfDontExists($folder);
 
         $this->file_path = $folder . $new_file_name;
 
@@ -74,9 +87,7 @@ class FileHandler
     {
 
         $file_type = config('ajimportdata.filetype');
-        $error     = [];
 
-        echo "<br/>Validating file....";
         //echo "File Type : "$file_type;
         switch ($file_type) {
 
@@ -92,18 +103,18 @@ class FileHandler
                 /*print_r($config_fileheaders);
                 echo " config header count :". $config_fileheaders_count . "-- File Header count:" . $file_headers_count;*/
                 if ($config_fileheaders_count != $file_headers_count) {
-                    $error[]                  = "Error: Header count mismatched <br/> File Headers count: " . $file_headers_count . " <br/> Config file header count:" . $config_fileheaders_count;
+                    $this->errors[]           = "Error: Header count mismatched <br/> File Headers count: " . $file_headers_count . " <br/> Config file header count:" . $config_fileheaders_count;
                     $this->header_count_match = false;
                     break;
                 } else {
 
-                    $logs[] = "<br/> Header count matched ";
+                    $this->logs[] = "Header count matched ";
                 }
 
                 $header_count = count($config_fileheaders);
                 for ($i = 0; $i < $header_count; $i++) {
                     if ($config_fileheaders[$i] != $file_headers[$i]) {
-                        $error[]              = "Error: File Headers mismatched with the configuration!!";
+                        $this->errors[]       = "Error: File Headers mismatched with the configuration!!";
                         $this->header_matched = false;
                         break;
                     }
@@ -114,37 +125,22 @@ class FileHandler
                 break;
 
             default:
-                $error[] = 'Invalid file type configured';
+                $this->errors[] = 'Invalid file type configured';
                 break;
 
         }
 
         if ($this->header_matched == true) {
-            $logs[] = "<br/> Headers matched with the configuration!!";
+            $this->logs[] = "Headers matched with the configuration!!";
         }
 
         $success = true;
 
-        if (count($error) > 0) {
+        if (count($this->errors) > 0) {
             $success = false;
         }
 
-        echo "<pre>";
-        if (count($logs) > 0) {
-            print_r($logs);
-        }
-
-        if (count($error)) {
-            print_r($error);
-        }
-
-        echo "</pre>";
-
-        $result = array('error' => $error, 'success' => $success);
-
-        //print_r(array('error' => $error, 'success' => $success));
-
-        return $result;
+        return $success;
 
     }
 
@@ -194,26 +190,26 @@ class FileHandler
         return $file_path;
     }
 
-    public function is_directory_exists($filepath)
-    {
-        if (File::exists($filepath)) {
-            if (File::isDirectory($filepath)) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
+    /*public function is_directory_exists($filepath)
+{
+if (File::exists($filepath)) {
+if (File::isDirectory($filepath)) {
+return true;
+} else {
+return false;
+}
+} else {
+return false;
+}
 
-    }
+}
 
-    public function createDirectoryIfDontExists($filepath)
-    {
+public function createDirectoryIfDontExists($filepath)
+{
 
-        if (!$this->is_directory_exists($filepath)) {
-            File::makeDirectory($filepath, 0775, true, true);
-        }
+if (!$this->is_directory_exists($filepath)) {
+File::makeDirectory($filepath, 0775, true, true);
+}
 
-    }
+}*/
 }

@@ -16,8 +16,17 @@ Route::get('/ajgetErrorLogs', 'AjFileImportController@getErrorLogs');
 
 Route::get('/ajtestschedule', 'AjFileImportController@testSchedule');
 
+Route::get('/ajtestsendmail', 'AjFileImportController@testSendmail');
 
-Route::get('/ajimportfile', 'AjFileImportController@showUploadFile');
+
+Route::get('/ajcheckconfigtables', 'AjFileImportController@testConfigTableExists');
+
+
+
+
+Route::get('/ajimportfile', 'AjFileImportController@showUploadFile')->name('showfileupload');
+
+Route::get('/ajviewdataforimport', 'AjFileImportController@downloadTemptableDataCsv')->name('downloadtemptablecsv');
 
 //Route::get('/laraqueue', 'AjFileImportController@send');
 

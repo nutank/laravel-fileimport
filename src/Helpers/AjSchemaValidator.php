@@ -17,7 +17,7 @@ class AjSchemaValidator
     private $exists = false;
     private $errors = [];
     /**
-     *To do
+     * 
      * For a table,
      * Update the records on temp table with error on following :--
      * select records from temporary table whose field value are empty and which should be non null in the main table.
@@ -174,11 +174,12 @@ class AjSchemaValidator
      *
      * @param      string  $field_name  The field name
      */
-    public function validatePrimaryUnique($field_name)
+    public function validatePrimaryUnique($field_name, $params)
     {
 
+        $childtable_name  = $params['childtable']['name'];
         $temp_table_name  = $this->table_name;
-        $uniq_field_error = " Multiple Values for the unique field in the data provided";
+        $uniq_field_error = " Multiple Values for the unique field '" . $field_name . "' in the data provided for child table '" . $childtable_name . "'";
 
         $qry_validate_uniq = "UPDATE " . $temp_table_name . " SET aj_error_log='" . $uniq_field_error . "', aj_isvalid = 'N' WHERE " . $field_name . " IN (SELECT " . $field_name . " FROM (SELECT tt1." . $field_name . " as " . $field_name . "  FROM " . $temp_table_name . " tt1  group by " . $field_name . " having count(" . $field_name . ")>1) tt2)";
 

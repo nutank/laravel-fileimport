@@ -3,6 +3,8 @@ namespace Ajency\Ajfileimport\Helpers;
 
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Log;
+use Response;
 
 /**
  * Class to validate the csv data imported to temporary table, based on master/child table schema
@@ -225,39 +227,103 @@ class AjTable
         $childtables = config('ajimportdata.childtables'); //Get child table from config
     }
 
+    public function getUniqFields()
+    {
 
+        $table_schema = $this->getTableSchema();
+        if (count($table_schema) <= 0) {
+            $this->setTableSchema();
+        }
 
-     public function getUniqFields(){
-            
-            
-            $table_schema = $this->getTableSchema();
-            if(count($table_schema)<=0){
-                $this->setTableSchema();
-            }
+        foreach ($table_schema as $child_field_name => $child_field_value) {
+            if (isset($child_field_value->Key)) {
 
-            foreach ($table_schema as $child_field_name => $child_field_value) {
-                if(isset($child_field_value->Key)){
+                if ($child_field_value->Key == "PRI" || $child_field_value->Key == "UNI") {
 
-                    
+                    /* $child_field_maps = $child_table_conf_list[$child_count]['name'];
+                    $child_field_maps_flipped = array_flip($child_field_maps);
+                    if(isset($child_field_maps_flipped[$child_field_name])){
 
-                    if($child_field_value->Key=="PRI" || $child_field_value->Key=="UNI"){
+                    $temp_table_validator = new AjSchemaValidator($temp_tablename);
+                    $temp_table_validator->validatePrimaryUnique($child_field_maps_flipped[$child_field_name]);
 
-                       /* $child_field_maps = $child_table_conf_list[$child_count]['name'];
-                        $child_field_maps_flipped = array_flip($child_field_maps);
-                        if(isset($child_field_maps_flipped[$child_field_name])){
+                    }*/
 
-                            $temp_table_validator = new AjSchemaValidator($temp_tablename);
-                            $temp_table_validator->validatePrimaryUnique($child_field_maps_flipped[$child_field_name]);
-
-                        }*/
-
-                        $uniq_fields[] = $child_field_value->Field;
-                    }
+                    $uniq_fields[] = $child_field_value->Field;
                 }
             }
-            /* End validating temp table for uniq field values*/
+        }
+        /* End validating temp table for uniq field values*/
 
-            return $uniq_fields;
+        return $uniq_fields;
+    }
+
+    public function downloadTableDataAsCsv()
+    {
+
+        $temp_tablename = config('ajimportdata.temptablename');
+
+        $import_libs = new AjImportlibs();
+
+        $file_prefix = "aj_" . $this->table_name;
+
+        $folder = storage_path('app/Ajency/Ajfileimport/mtable');
+
+        $import_libs->createDirectoryIfDontExists($folder);
+
+        $child_outfile_name = $import_libs->generateUniqueOutfileName($file_prefix, $folder);
+
+        $file_path = str_replace("\\", "\\\\", $child_outfile_name);
+
+        $this->setTableSchema();
+        $table_schema = $this->getTableSchema();
+
+        foreach ($table_schema as $field_value) {
+            $fields_names_ar[] = $field_value->Field;
+        }
+
+        try {
+
+            $qry_select_valid_data = "SELECT '" . implode("', '", $fields_names_ar) . "'  ";
+
+            $qry_select_valid_data .= " UNION ALL ";
+
+            $qry_select_valid_data .= " SELECT `" . implode("`, `", $fields_names_ar) . "`   ";
+
+            $qry_select_valid_data .= " INTO OUTFILE '" . $file_path . "'
+                                    FIELDS TERMINATED BY ','
+                                    OPTIONALLY ENCLOSED BY '\"'
+                                    ESCAPED BY ''
+                                    LINES TERMINATED BY '\n'
+                                    FROM `" . $temp_tablename . "`  outtable  ";
+
+            Log::info('<br/> \n  downloadTableDataAsCsv  :----------------------------------');
+            Log::info("filepath" . $file_path);
+            Log::info($qry_select_valid_data);
+
+            DB::select($qry_select_valid_data);
+            $headers = array('Content-Type' => 'text/csv');
+
+            return response()->download($file_path, $temp_tablename . '.csv', $headers);
+
+            /*
+            $headers = array('Content-Type' => 'text/csv');
+
+            $file_handle = fopen($child_outfile_name,'r');
+
+            Response::download($child_outfile_name, $temp_tablename.'.csv', $headers);
+
+            fclose($file_handle);*/
+
+            //update valid rows in temp table with the valid inserts on child table.
+
+        } catch (\Illuminate\Database\QueryException $ex) {
+
+            // Note any method of class PDOException can be called on $ex.
+            $this->errors[] = $ex->getMessage();
+
+        }
+
     }
 
 }

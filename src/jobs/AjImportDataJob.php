@@ -52,12 +52,15 @@ class AjImportDataJob implements ShouldQueue
 
         switch ($this->params['type']) {
 
-            case 'validateunique':$aj_file_import->processUniqueFieldValidationQueue($this->params);
-                Log::info('Processing validateunique ');
+            case 'validateunique':Log::info('Processing validateunique ');
+                $aj_file_import->processUniqueFieldValidationQueue($this->params);
+                
 
                 break;
-            case 'insert_records':$aj_file_import->addInsertRecordsQueue($this->params);
-                Log::info('Processing insert_records ');
+            case 'insert_records':
+            Log::info('Processing insert_records ');
+            $aj_file_import->addInsertRecordsQueue($this->params);
+                
 
                 break;
 

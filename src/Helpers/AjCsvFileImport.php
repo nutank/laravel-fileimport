@@ -1,9 +1,12 @@
 <?php
 /**
  * Ajency Laravel CSV Import Package
+ * Note : To be used for tables with field names without spaces
+ *
  */
 namespace Ajency\Ajfileimport\Helpers;
 
+use Ajency\Ajfileimport\Helpers\AjImportlibs;
 use Ajency\Ajfileimport\Helpers\AjSchemaValidator;
 use Ajency\Ajfileimport\Helpers\AjTable;
 use Ajency\Ajfileimport\jobs\AjImportDataJob;
@@ -32,6 +35,8 @@ class AjCsvFileImport
     private $temp_table_headers;
     private $file_path;
     private $errors;
+    private $childtables_conf;
+    private $temptable_fields;
 
     public function __construct($file_path = "")
     {
@@ -41,22 +46,33 @@ class AjCsvFileImport
 
     }
 
-    public function printErrorLog($error_logs)
+    public function index()
     {
 
-        foreach ($error_logs as $key => $error) {
-            echo $key . ". " . $error;
-        }
+        return view('ajency/ajfileimport::index');
 
     }
 
     public function init($request)
     {
 
+        $import_libs = new AjImportlibs();
+
+        echo "<br/> Checking for pending AjCsvFileImport pending jobs ...";
         $prev_pending_jobs = $this->areTherePreviousJobsPending();
 
         if ($prev_pending_jobs === true) {
-            $this->printErrorLog($this->getErrorLogs());
+            $import_libs->printLogs($this->getErrorLogs());
+            exit();
+        }
+
+        echo "<br/> Checking if tables from configuration file exists in database....";
+        $result = $this->checkIfAllConfigTablesExists();
+
+        if ($result == true) {
+            echo " Passed ";
+        } else {
+            $import_libs->printLogs($this->getErrorLogs());
             exit();
         }
 
@@ -84,12 +100,12 @@ class AjCsvFileImport
     {
 
         try {
-            $res_pending_job_count = DB::select("SELECT count(*) as pending_job_count FROM jobs WHERE queue in ('validateunique','validatechildinsert','insertvalidchilddata','tempupdatechildid','masterinsert')");
+            $res_pending_job_count = DB::select("SELECT count(*) as pending_job_count FROM jobs WHERE queue in ('validateunique','insert_records')");
 
             $pending_job_count = $res_pending_job_count[0]->pending_job_count;
 
             if ($pending_job_count > 0) {
-                $this->errors[] = "There are pending jobs from previous import to be processed!!";
+                $this->errors[] = "There are pending jobs from previous import to be processed!! <br/> Please run job queue <b>'php artisan queue:work --queue=validateunique,insert_records'</b>";
                 return true;
             } else {
 
@@ -124,18 +140,6 @@ class AjCsvFileImport
         return $this->file_path;
     }
 
-    public function index()
-    {
-
-        return view('ajency/ajfileimport::index');
-
-    }
-
-    public function uploadFile()
-    {
-
-    }
-
     /**
      * Loads a filedata in table.
      */
@@ -145,6 +149,54 @@ class AjCsvFileImport
             $this->$temp_table_headers[] = str_replace(' ', '_', $header);
         }
 
+    }
+
+    public function setChildTableConf()
+    {
+        $childtables_conf = config('ajimportdata.childtables'); //Get child table from config
+        foreach ($childtables_conf as $childtable) {
+
+            $new_fields_maps = [];
+
+            if (isset($childtable['fields_map'])) {
+                foreach ($childtable['fields_map'] as $key => $value) {
+                    $new_fields_maps[str_replace(' ', '_', $key)] = str_replace(' ', '_', $value);
+                }
+
+            }
+
+            $childtable['fields_map'] = $new_fields_maps;
+
+            $new_childtables_conf[] = $childtable;
+
+        }
+
+        $this->childtables_conf = $new_childtables_conf;
+
+    }
+
+    public function getChildTableConf()
+    {
+        return $this->childtables_conf;
+    }
+
+    public function setFileHeaderConf()
+    {
+
+        $fileheaders_conf = config('ajimportdata.fileheader'); //Get file headers
+
+        foreach ($fileheaders_conf as $header) {
+            $new_header_name   = $this->getFormatedTableHeaderName($header);
+            $new_header_conf[] = $new_header_name;
+
+        }
+
+        $this->fileheaders_conf = $new_header_conf;
+    }
+
+    public function getFileHeaderConf()
+    {
+        return $this->fileheaders_conf;
     }
 
     public function getFormatedTableHeaderName($header)
@@ -162,7 +214,11 @@ class AjCsvFileImport
     public function importFileData($file_handle)
     {
 
-        $this->loadFileData($file_handle);
+        $result_loadfile = $this->loadFileData($file_handle);
+        if ($result_loadfile === false) {
+            exit();
+        }
+
         $temp_tablename     = config('ajimportdata.temptablename');
         $res_table_creation = $this->createTempTable();
 
@@ -175,36 +231,41 @@ class AjCsvFileImport
 
         $real_file_path = $this->getFilePath();
 
-        $file_headers = $file_handle->getFileHeaders();
+        $file_headers = $this->getFileHeaderConf(); //$file_handle->getFileHeaders();
         $this->loadFiledatainTempTable($real_file_path, $file_headers, $temp_tablename);
         //$this->insertUpdateChildTable(); //VALIDATING CHILD TABLE FIELDS
     }
 
     public function loadFileData($file)
     {
+        $import_libs = new AjImportlibs();
+
         DB::connection()->disableQueryLog();
 
         /* $real_file_path = $this->getFilePath();
         $file           = new FileHandler(array('filepath' => $real_file_path));*/
 
+        echo "<br/>Validating file....";
         $result = $file->isValidFile();
 
-        if ($result['success'] !== true) {
+        if ($result !== true) {
 
-            if (count($result['error']) >= 0) {
+            if (count($file->getErrors()) >= 0) {
 
-                $file_error = $result['error'];
-                foreach ($file_error as $err_key => $err_value) {
-                    echo "<br/>" . $err_value;
-                }
+                $import_libs->printLogs($file->getErrors());
             } else {
                 echo "Invalid File.";
             }
             return false;
 
+        } else {
+
+            if (count($file->getLogs()) >= 0) {
+
+                $import_libs->printLogs($file->getLogs());
+            }
+            return true;
         }
-        /* echo "<pre>";
-    print_r($result);*/
 
     }
 
@@ -228,7 +289,18 @@ class AjCsvFileImport
 
         $mtable_flipped_fieldmaps = array_flip($mastertable_conf['fields_map']);
 
+        /* echo "<br/><br/><br/><br/><pre>============================== CONGIGURATION: ";
+
+        print_r($mastertable_conf);
+        echo "<br/>-------------- FIELDMAP FLIPPED: ";
+        print_r($mtable_flipped_fieldmaps);
+
+        echo "<br/> schema field of table:";
+        print_r($mtable_fields);*/
+
         foreach ($mtable_flipped_fieldmaps as $mfield_key => $mfield_value) {
+
+            $temptable_fields = [];
 
             $mfield_key = $mastertable->getFormatedTableHeaderName($mfield_key);
 
@@ -238,30 +310,43 @@ class AjCsvFileImport
 
             //$qry__create_table .= "<br/>";
 
-            $qry__create_table .= ", ";
-            $qry__create_table .= $tfield_name . " " . $cur_mtable_field->tmp_field_type;
-            if (isset($cur_mtable_field->tmp_field_length)) {
+            if (!isset($this->temptable_fields[$tfield_name])) {
 
-                $qry__create_table .= "(" . $cur_mtable_field->tmp_field_length . ")";
+                $temptable_fields['Field'] = $tfield_name;
+
+                $qry__create_table .= ", ";
+                $qry__create_table .= "`" . $tfield_name . "` " . $cur_mtable_field->tmp_field_type;
+
+                $temptable_fields['Type'] = $cur_mtable_field->tmp_field_type;
+
+                if (isset($cur_mtable_field->tmp_field_length)) {
+
+                    $qry__create_table .= "(" . $cur_mtable_field->tmp_field_length . ")";
+                    $temptable_fields['maxlength'] = $cur_mtable_field->tmp_field_length;
+                }
+
+                if ($cur_mtable_field->Null == true) {
+
+                    $qry__create_table .= " DEFAULT NULL ";
+                    $temptable_fields['Null'] = 'YES';
+                }
+
+                if (isset($cur_mtable_field->Default)) {
+
+                    $qry__create_table .= " DEFAULT " . $cur_mtable_field->Default;
+                    $temptable_fields['Null'] = 'YES';
+                }
+
+                //if child table create index on the field
+                if ($is_child == true) {
+                    $qry__create_table .= ", INDEX `" . $tfield_name . "` (`" . $tfield_name . "` )";
+                }
+
+                //$mfield_data = $mastertable_fields[$mfield_key];
+                //print_r($mtable_fields[$mfield_key]);
+                $this->temptable_fields[$tfield_name] = $temptable_fields;
+
             }
-
-            if ($cur_mtable_field->Null == true) {
-
-                $qry__create_table .= " DEFAULT NULL ";
-            }
-
-            if (isset($cur_mtable_field->Default)) {
-
-                $qry__create_table .= " DEFAULT " . $cur_mtable_field->Default;
-            }
-
-            //if child table create index on the field
-            if ($is_child == true) {
-                $qry__create_table .= ", INDEX " . $tfield_name . " (" . $tfield_name . " )";
-            }
-
-            //$mfield_data = $mastertable_fields[$mfield_key];
-            //print_r($mtable_fields[$mfield_key]);
 
         }
 
@@ -271,11 +356,17 @@ class AjCsvFileImport
     public function createTempTable()
     {
 
-        $fileheaders_conf = config('ajimportdata.fileheader'); //Get file headers
+        $this->setChildTableConf();
+        $this->setFileHeaderConf();
+
+        $fileheaders_conf = $this->getFileHeaderConf(); //config('ajimportdata.fileheader'); //Get file headers
         //
         $mastertable_conf = config('ajimportdata.mastertable'); //Get file headers
 
-        $childtables_conf = config('ajimportdata.childtables'); //Get child table from config
+        $childtables_conf = $this->getChildTableConf(); //config('ajimportdata.childtables'); //Get child table from config
+
+        /* echo "<pre>";
+        dd($childtables_conf );*/
 
         $temp_table_name = config('ajimportdata.temptablename'); //Get temp table name from config
 
@@ -286,10 +377,10 @@ class AjCsvFileImport
 
         $qry_childtable_insert_ids = "";
 
-        $mastertable = new AjTable($mastertable_conf['name']);
+        /*$mastertable = new AjTable($mastertable_conf['name']);
         $mastertable->setTableSchema();
         $is_child_table = false;
-        $qry__create_table .= $this->tempTableQueryByTable($mastertable_conf, $mastertable, $is_child_table);
+        $qry__create_table .= $this->tempTableQueryByTable($mastertable_conf, $mastertable, $is_child_table);*/
         $qry_indexes = "";
 
         $child_count = 0;
@@ -310,12 +401,38 @@ class AjCsvFileImport
 
         }
 
+        /*echo "*************************";
+        var_dump($this->temptable_fields);
+        echo "*************************";*/
+
+        //Check if corresponding header fields are considered on temp table
+        foreach ($fileheaders_conf as $header) {
+
+            if (!isset($this->temptable_fields[$header]) && strtolower($header) != 'id') {
+
+                $tfield_name = $header;
+
+                $temptable_fields['Field'] = $tfield_name;
+
+                $qry__create_table .= ", ";
+                $qry__create_table .= "`" . $tfield_name . "` VARCHAR (250)  DEFAULT NULL ";
+
+                $temptable_fields['Type'] = "VARCHAR";
+
+                $temptable_fields['maxlength'] = 250;
+                $temptable_fields['Null']      = 'YES';
+
+            }
+
+        }
+
         $qry__create_table .= $qry_childtable_insert_ids;
 
         $qry__create_table .= ", aj_error_log  LONGTEXT   ";
         $qry__create_table .= ", aj_isvalid  CHAR(1) NOT NULL DEFAULT '' ";
         $qry__create_table .= $qry_indexes;
         $qry__create_table .= " )  ENGINE=InnoDB;";
+        //dd($qry__create_table);
 
         Log::info("<pre>" . $qry__create_table);
         $success = false;
@@ -351,14 +468,14 @@ class AjCsvFileImport
 
         $file_path = str_replace("\\", "\\\\", $real_file_path);
 
-        $qry_load_data = "LOAD DATA LOCAL INFILE '" . $file_path . "' INTO TABLE " . $temp_tablename . "
+        $qry_load_data = "LOAD DATA LOCAL INFILE '" . $file_path . "' INTO TABLE `" . $temp_tablename . "`
                  FIELDS TERMINATED BY ','
                 OPTIONALLY ENCLOSED BY '\"'
-                LINES  TERMINATED BY '\n' IGNORE 1 LINES  ( ";
-        $qry_load_data .= implode(",", $file_headers) . " ) ;    ";
+                LINES  TERMINATED BY '\n' IGNORE 1 LINES  ( `";
+        $qry_load_data .= implode("`,`", $file_headers) . "` ) ;    ";
 
         //echo $qry_load_data;
-
+        /*dd($qry_load_data);*/
         try {
 
             $pdo_obj = DB::connection()->getpdo();
@@ -381,7 +498,7 @@ class AjCsvFileImport
             var_dump($ex->getMessage());
         }
 
-        var_dump($result);
+        //var_dump($result);
 
         /*if(($handle = fopen($file_path, 'r')) !== false)
     {
@@ -423,6 +540,7 @@ class AjCsvFileImport
     public function addJobQueue()
     {
 
+        Log::info('addJobQueue-----------');
         $temp_tablename = config('ajimportdata.temptablename');
 
         $batchsize = config('ajimportdata.batchsize');
@@ -441,30 +559,34 @@ class AjCsvFileImport
 
         $temp_records_count = $valid_record_count[0]->records_count;
 
-        $mastertable_conf = config('ajimportdata.mastertable');
+        /* $mastertable_conf = config('ajimportdata.mastertable');
         $mtable_name      = $mastertable_conf['name'];
-        $mtable_fieldmaps = $mastertable_conf['fields_map'];
+        $mtable_fieldmaps = $mastertable_conf['fields_map'];*/
 
-        $childtables_conf_ar = config('ajimportdata.childtables');
+        $childtables_conf_ar = $this->getChildTableConf(); //config('ajimportdata.childtables');
 
         $total_loops = round($temp_records_count / $batchsize);
+
+        // echo $temp_records_count . "TOTAL LOOPS" . $total_loops;
 
         $this->addValidateUnique($temp_records_count);
 
         for ($loop = 0; $loop < $total_loops; $loop++) {
+
+            //echo "<br/>LOOP TEST :" . $loop;
 
             $job_params = array('current_loop_count' => $loop, 'total_loops' => $total_loops, 'type' => 'insert_records');
             AjImportDataJob::dispatch($job_params)->onQueue('insert_records');
 
         }
 
-        echo "<b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
+        echo "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
         Log::info("Executing schedule command");
-        $app          = App::getFacadeRoot();
-        $schedule     = $app->make(Schedule::class);
-        $schedule_res = $schedule->command('php artisan queue:work --queue=validateunique,insert_records');
-        echo "<pre>";
-        print_r($schedule_res);
+        /* $app          = App::getFacadeRoot();
+    $schedule     = $app->make(Schedule::class);
+    $schedule_res = $schedule->command('php artisan queue:work --queue=validateunique,insert_records');
+    echo "<pre>";
+    print_r($schedule_res);*/
 
     }
 
@@ -479,8 +601,12 @@ class AjCsvFileImport
         Log::info('-------------addValidateUnique--------------');
 
         $temp_tablename        = config('ajimportdata.temptablename');
-        $child_table_conf_list = config('ajimportdata.childtables');
+        $child_table_conf_list = $this->getChildTableConf(); //config('ajimportdata.childtables');
         $total_no_child_tables = count($child_table_conf_list);
+
+        /* echo "<pre>total_no_child_tables:" . $total_no_child_tables;
+
+        print_r($child_table_conf_list);*/
 
         $batchsize = config('ajimportdata.batchsize'); //Get temp table name from config
         $loops     = round($temp_records_count / $batchsize);
@@ -515,12 +641,16 @@ class AjCsvFileImport
 
     public function addInsertRecordsQueue($params)
     {
-
+        $this->setChildTableConf();
         Log::info('-------------addInsertRecordsQueue--------------');
 
         $temp_tablename        = config('ajimportdata.temptablename');
-        $child_table_conf_list = config('ajimportdata.childtables');
+        $child_table_conf_list = $this->getChildTableConf(); // config('ajimportdata.childtables');
         $total_no_child_tables = count($child_table_conf_list);
+
+        Log::info($child_table_conf_list);
+        Log::info('total_no_child_tables : ' . $total_no_child_tables);
+        $total_no_child_tables;
 
         $batchsize = config('ajimportdata.batchsize'); //Get temp table name from config
         // $loops     = round($temp_records_count / $batchsize);
@@ -596,11 +726,18 @@ class AjCsvFileImport
     public function processUniqueFieldValidationQueue($params)
     {
 
+        Log::info("processUniqueFieldValidationQueue:---------------------------");
+
+        Log::info($params);
         $temp_tablename   = config('ajimportdata.temptablename');
         $child_field_name = $params['child_field_name'];
 
+        Log::info($temp_tablename);
+
+        Log::info($child_field_name);
+
         $temp_table_validator = new AjSchemaValidator($temp_tablename);
-        $temp_table_validator->validatePrimaryUnique($child_field_name);
+        $temp_table_validator->validatePrimaryUnique($child_field_name, $params);
 
     }
 
@@ -659,10 +796,75 @@ class AjCsvFileImport
         $child_table_name = $child_table_conf['name'];
 
         $temp_fields_ar = array_keys($child_field_maps);
-        $temp_fields    = implode(",", $temp_fields_ar);
+
+        Log::info('temp_fields_ar');
+        Log::info($temp_fields_ar);
+        $temp_fields = implode("`,`", $temp_fields_ar);
 
         $child_fields_ar = array_values($child_field_maps);
-        $child_fields    = implode(",", $child_fields_ar);
+
+        $import_libs = new AjImportlibs();
+
+        /** If default values has to be set for table insertion take the default values*/
+        $child_default_values_string = "";
+        if (isset($child_table_conf['default_values'])) {
+            $child_default_keys = array_keys($child_table_conf['default_values']);
+            $child_fields_ar    = array_merge($child_fields_ar, $child_default_keys);
+            //$child_default_keys_string = implode("`,`", $child_default_keys);
+
+            $child_default_values        = array_values($child_table_conf['default_values']);
+            $child_default_values_string = implode("','", $import_libs->custom_mysql_real_escape($child_default_values));
+
+        }
+
+        /** If fields comma seperated values has to be put in seperate recods on the table */
+
+        $comma_field_select = "";
+        $comma_field_from   = "";
+        if (isset($child_table_conf['commafield_to_multirecords'])) {
+            $child_target_commafield = array_values($child_table_conf['commafield_to_multirecords']);
+            $child_fields_ar         = array_merge($child_fields_ar, $child_target_commafield);
+
+            $comma_field_conf = $child_table_conf['commafield_to_multirecords'];
+
+            foreach ($comma_field_conf as $comma_key => $comma_value) {
+                $comma_field_select = "SUBSTRING_INDEX(SUBSTRING_INDEX(" . $comma_key . ", ',', numbers.n), ',', -1) " . $comma_key;
+
+                $comma_field_from = "  (SELECT 1 n UNION ALL SELECT 2
+   UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20) numbers INNER JOIN " . $temp_tablename . "
+  ON CHAR_LENGTH(" . $comma_key . ")
+     -CHAR_LENGTH(REPLACE(" . $comma_key . ", ',', ''))>=numbers.n-1 ";
+            }
+
+        }
+
+        /** If Serialized values has to be added on table build the serialized array value for the fields */
+        $serialize_string = "";
+        if (isset($child_table_conf['serializevalues'])) {
+
+            $serialized_fields_conf = $child_table_conf['serializevalues'];
+
+            foreach ($serialized_fields_conf as $target_serialized_field => $serialize_tmpfield) {
+
+                $current_serialize_field_cnt = count($serialize_tmpfield);
+
+                $serialize_string = 'CONCAT("a:' . $current_serialize_field_cnt . ':{"';
+
+                foreach ($serialize_tmpfield as $serialize_key => $serialize_value) {
+
+                    $serialize_string .= ',"s:' . strlen($serialize_key) . ':\"' . $serialize_key . '\";"';
+                    $serialize_string .= ',"s:",CHAR_LENGTH(' . $serialize_value . '),":\"",' . $serialize_value . ',"\";"';
+
+                }
+                $serialize_string .= ',"}")';
+
+                $child_fields_ar[] = $target_serialized_field;
+
+            }
+
+        }
+
+        $child_fields = implode("`,`", $child_fields_ar);
 
         $batchsize = config('ajimportdata.batchsize');
 
@@ -671,9 +873,9 @@ class AjCsvFileImport
         $file_prefix = "aj_" . $child_table_name;
         $folder      = storage_path('app/Ajency/Ajfileimport/validchilddata/');
 
-        $this->createDirectoryIfDontExists($folder);
+        $import_libs->createDirectoryIfDontExists($folder);
 
-        $child_outfile_name = $this->generateUniqueOutfileName($file_prefix, $folder);
+        $child_outfile_name = $import_libs->generateUniqueOutfileName($file_prefix, $folder);
 
         //$child_outfile_name = "aj_" . $child_table_name . "" . date('d_m_Y_H_i_s') . ".csv";
 
@@ -685,15 +887,29 @@ class AjCsvFileImport
 
         try {
 
-            $qry_select_valid_data = "SELECT " . $temp_fields . " INTO OUTFILE '" . $file_path . "'
+            $qry_select_valid_data = "SELECT `" . $temp_fields . "` ";
+
+            if ($child_default_values_string != '') {
+                $qry_select_valid_data .= ",'" . $child_default_values_string . "'";
+            }
+
+            if ($serialize_string != '') {
+                $qry_select_valid_data .= "," . $serialize_string;
+            }
+            if (isset($child_table_conf['commafield_to_multirecords']) && $comma_field_select != "") {
+                $qry_select_valid_data .= "," . $comma_field_select;
+            }
+
+            $qry_select_valid_data .= " INTO OUTFILE '" . $file_path . "'
                                     FIELDS TERMINATED BY ','
                                     OPTIONALLY ENCLOSED BY '\"'
+                                    ESCAPED BY ''
                                     LINES TERMINATED BY '\n'
-                                    FROM " . $temp_tablename . " outtable WHERE outtable.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt   ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  aj_isvalid!='N'";
+                                    FROM " . ($comma_field_from != "" ? $comma_field_from . " WHERE id in " : $temp_tablename . " outtable WHERE outtable.id in ") . " (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt   ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  aj_isvalid!='N' order by id ASC";
 
-            /*Log::info('<br/> \n  OUTFILE query  :----------------------------------');
-            Log::info("filepath". $file_path);
-            Log::info( $qry_select_valid_data);*/
+            Log::info('<br/> \n  validchilddata OUTFILE query  :----------------------------------');
+            Log::info("filepath" . $file_path);
+            Log::info($qry_select_valid_data);
 
             DB::select($qry_select_valid_data);
 
@@ -711,8 +927,8 @@ class AjCsvFileImport
         $qry_load_data = "LOAD DATA LOCAL INFILE '" . $file_path . "' INTO TABLE " . $child_table_name . "
          FIELDS TERMINATED BY ','
         OPTIONALLY ENCLOSED BY '\"'
-        LINES  TERMINATED BY '\n'    ( ";
-        $qry_load_data .= $child_fields . " ) ";
+        LINES  TERMINATED BY '\n'    ( `";
+        $qry_load_data .= $child_fields . "` ) ";
 
         try {
             $pdo_obj = DB::connection()->getpdo();
@@ -750,182 +966,90 @@ class AjCsvFileImport
         $current_child_count = $params['current_child_count'];
 
         $child_insert_id_on_temp_table = $this->getFormatedFieldName($child_table_conf['name']) . "_id"; // $child_table_conf['insertid_temptable'];
-        $child_insert_id_field         = $child_table_conf['insertid_childtable'];
 
-        $batchsize = config('ajimportdata.batchsize');
+        if (isset($child_table_conf['insertid_childtable'])) {
 
-        $limit = $loop_count * $batchsize;
+            $child_insert_id_field = $child_table_conf['insertid_childtable'];
 
-        $field_maps      = $child_table_conf['fields_map'];
-        $cnt_where       = 0;
-        $where_condition = " ";
-        foreach ($field_maps as $tempfield => $childfield) {
+            $batchsize = config('ajimportdata.batchsize');
 
-            $where_condition .= " AND ";
+            $limit = $loop_count * $batchsize;
 
-            $where_condition .= " tmpdata." . $tempfield . "=" . "childtable." . $childfield . "";
-            $cnt_where++;
-        }
+            $field_maps      = $child_table_conf['fields_map'];
+            $cnt_where       = 0;
+            $where_condition = " ";
+            foreach ($field_maps as $tempfield => $childfield) {
 
-        $qry_update_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
-        SET
-            tmpdata." . $child_insert_id_on_temp_table . " = childtable." . $child_insert_id_field . "
-        WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  tmpdata.aj_isvalid!='N'" . $where_condition;
+                $where_condition .= " AND ";
 
-        try {
+                $where_condition .= " tmpdata." . $tempfield . "=" . "childtable." . $childfield . "";
+                $cnt_where++;
+            }
 
-            Log::info('<br/> \n  UPDATER child ids on temp table   :----------------------------------');
+            $qry_update_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
+            SET
+                tmpdata." . $child_insert_id_on_temp_table . " = childtable." . $child_insert_id_field . "
+            WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  tmpdata.aj_isvalid!='N'" . $where_condition;
+
+            try {
+
+                Log::info('<br/> \n  UPDATER child ids(' . $child_table_conf['name'] . ') on temp table   :----------------------------------');
+
+                Log::info($qry_update_child_ids);
+
+                DB::update($qry_update_child_ids);
+
+                //update valid rows in temp table with the valid inserts on child table.
+
+            } catch (\Illuminate\Database\QueryException $ex) {
+
+                // Note any method of class PDOException can be called on $ex.
+                $this->errors[] = $ex->getMessage();
+
+            }
+
+            /* check if child insert id is mandatary on temporary table, and update the records in the current batch to invalid if the child insert id on temp table is empty */
+            if (isset($child_table_conf['is_mandatary_insertid'])) {
+                if ($child_table_conf['is_mandatary_insertid'] == "yes") {
+                    $qry_update_failed_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
+                        SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )   AND  tmpdata.aj_isvalid!='N'";
+
+                    try {
+
+                        Log::info('<br/> \n  UPDATER failed child ids(' . $child_table_conf['name'] . ')  on temp table   :----------------------------------');
+
+                        Log::info($qry_update_failed_child_ids);
+
+                        DB::update($qry_update_failed_child_ids);
+
+                        //update valid rows in temp table with the valid inserts on child table.
+
+                    } catch (\Illuminate\Database\QueryException $ex) {
+
+                        // Note any method of class PDOException can be called on $ex.
+                        $this->errors[] = $ex->getMessage();
+
+                    }
+
+                }
+            }
+
+            $string = "Total child count : " . ($total_childs - 1) . " total batches :" . ($total_batches - 1);
 
             Log::info($qry_update_child_ids);
-
-            DB::update($qry_update_child_ids);
-
-            //update valid rows in temp table with the valid inserts on child table.
-
-        } catch (\Illuminate\Database\QueryException $ex) {
-
-            // Note any method of class PDOException can be called on $ex.
-            $this->errors[] = $ex->getMessage();
+            Log::info($string);
 
         }
-
-        $string = "Total child count : " . ($total_childs - 1) . " total batches :" . ($total_batches - 1);
-
-        Log::info($qry_update_child_ids);
-        Log::info($string);
 
         if ($current_child_count == ($total_childs - 1)) {
 
             Log::info('CALL MASTER INSERT NOW');
-            $this->process_masterinsert_queue($params);
+            //$this->sendErrorLogFile();
+
+            //$this->process_masterinsert_queue($params);
+
         } else {
             Log::info('DO NOT CALL MASTER INSERT NOW');
-
-        }
-
-    }
-
-    public function process_masterinsert_queue($params)
-    {
-
-        $mastertable_conf = config('ajimportdata.mastertable');
-        $mtable_name      = $mastertable_conf['name'];
-
-        $mtable_fieldmaps = $mastertable_conf['fields_map'];
-
-        $childtables_conf_ar = config('ajimportdata.childtables');
-
-        foreach ($childtables_conf_ar as $key => $childtable_conf) {
-            $child_fieldmaps                   = $childtable_conf['fields_map'];
-            $temptablefield_for_child_insertid = $this->getFormatedFieldName($childtable_conf['name']) . "_id";
-
-            //if (isset($childtable_conf['insertid_mtable']) && isset($childtable_conf['insertid_temptable'])) {
-            if (isset($childtable_conf['insertid_mtable'])) {
-
-                $mtable_fieldmaps[$temptablefield_for_child_insertid] = $childtable_conf['insertid_mtable'];
-
-            }
-
-        }
-
-        $temp_tablename = config('ajimportdata.temptablename');
-
-        $batchsize = config('ajimportdata.batchsize');
-
-        $loop_count = $params['current_loop_count'];
-
-        $total_loops = $params['total_loops'];
-
-        $mtable_name = $mastertable_conf['name'];
-
-        $limit = $loop_count * $batchsize;
-
-        $master_outfile_name = "aj_" . $mtable_name . "" . date('d_m_Y_H_i_s') . ".csv";
-
-        $file_prefix = "aj_" . $mtable_name;
-        $folder      = storage_path('app/Ajency/Ajfileimport/mtable');
-
-        $this->createDirectoryIfDontExists($folder);
-
-        $master_outfile_path = $this->generateUniqueOutfileName($file_prefix, $folder);
-
-        //$master_outfile_path = storage_path('app/Ajency/Ajfileimport/mtable/') . $master_outfile_name;
-
-        $file_path = str_replace("\\", "\\\\", $master_outfile_path);
-
-        $tempfield_ar = array_keys($mtable_fieldmaps);
-
-        $temp_fields = implode(',', $tempfield_ar);
-
-        try {
-
-            $qry_select_valid_data = "SELECT " . $temp_fields . " INTO OUTFILE '" . $file_path . "'
-                                    FIELDS TERMINATED BY ','
-                                    OPTIONALLY ENCLOSED BY '\"'
-                                    LINES TERMINATED BY '\n'
-                                    FROM " . $temp_tablename . " outtable WHERE outtable.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  aj_isvalid!='N'";
-
-            Log::info('<br/> \n  OUTFILE MASTER TABLE QUERY   :----------------------------------');
-            Log::info("filepath" . $file_path);
-            Log::info($qry_select_valid_data);
-
-            DB::select($qry_select_valid_data);
-
-            $this->loadMasterData($file_path, $mtable_fieldmaps, $mastertable_conf, $params);
-
-            //update valid rows in temp table with the valid inserts on child table.
-
-        } catch (\Illuminate\Database\QueryException $ex) {
-
-            // Note any method of class PDOException can be called on $ex.
-            $this->errors[] = $ex->getMessage();
-
-        }
-
-    }
-
-    public function loadMasterData($file_path, $mtable_fieldmaps, $mastertable_conf, $params)
-    {
-
-        $total_records = $params['total_loops'];
-        $loop_count    = $params['current_loop_count'];
-
-        $mtable_name = $mastertable_conf['name'];
-
-        $mtable_fields_ar = array_values($mtable_fieldmaps);
-        $mtable_fields    = implode(",", $mtable_fields_ar);
-
-        $qry_mtableload_data = "LOAD DATA LOCAL INFILE '" . $file_path . "' INTO TABLE " . $mastertable_conf['name'] . "
-                 FIELDS TERMINATED BY ','
-                OPTIONALLY ENCLOSED BY '\"'
-                LINES  TERMINATED BY '\n'    ( ";
-        $qry_mtableload_data .= $mtable_fields . " ) ";
-
-        Log::info('<br/> \n  LOAD IN  MASTER TABLE QUERY   :----------------------------------');
-        Log::info("filepath" . $file_path);
-        Log::info($qry_mtableload_data);
-
-        try {
-            $pdo_obj = DB::connection()->getpdo();
-            $result  = $pdo_obj->exec($qry_mtableload_data);
-            Log::info("---------- Load  data in master table ---------");
-            Log::info($qry_mtableload_data);
-
-        } catch (\Illuminate\Database\QueryException $ex) {
-
-            // Note any method of class PDOException can be called on $ex.
-            Log::info($ex->getMessage());
-            Log::info($ex);
-
-            Log::info("**********************************ERROR************************************");
-
-        }
-
-        Log::info('Loop count:' . $loop_count . " totalrecords - 1 " . ($total_records - 1));
-
-        //If insertion of records to master table is done send mail of records with error to given email
-        if ($loop_count == ($total_records - 1)) {
-            $this->sendErrorLogFile();
 
         }
 
@@ -934,13 +1058,18 @@ class AjCsvFileImport
     public function sendErrorLogFile()
     {
 
+        $import_libs = new AjImportlibs();
+        $recipient   = config('ajimportdata.recipient');
+
         $temp_tablename = config('ajimportdata.temptablename');
         $file_prefix    = "aj_errorlog";
         $folder         = storage_path('app/Ajency/Ajfileimport/errorlogs/');
 
-        $errorlog_outfile_path = $this->generateUniqueOutfileName($file_prefix, $folder);
+        $errorlog_outfile_path = $import_libs->generateUniqueOutfileName($file_prefix, $folder);
 
-        echo $errorlog_outfile_path;
+        Log::info("sendErrorLogFile:-----------------------------------------------");
+        Log::info($errorlog_outfile_path);
+        //echo $errorlog_outfile_path;
 
         $file_path = str_replace("\\", "\\\\", $errorlog_outfile_path);
 
@@ -950,8 +1079,10 @@ class AjCsvFileImport
                                     FIELDS TERMINATED BY ','
                                     OPTIONALLY ENCLOSED BY '\"'
                                     LINES TERMINATED BY '\n'
+                                    FIELDS ESCAPED BY ''
                                     FROM " . $temp_tablename . " outtable WHERE aj_isvalid='N'";
 
+            Log:info($qry_select_valid_data);
             DB::select($qry_select_valid_data);
 
         } catch (\Illuminate\Database\QueryException $ex) {
@@ -959,6 +1090,10 @@ class AjCsvFileImport
             $this->errors[] = $ex->getMessage();
 
         }
+
+        $mail_params = array('recipient' => $recipient, 'attachment' => $errorlog_outfile_path);
+
+        $import_libs->sendMail($mail_params);
 
     }
 
@@ -981,40 +1116,68 @@ class AjCsvFileImport
 
     }
 
-    public function generateUniqueOutfileName($prefix, $folder)
-    {
-
-        $rand_string = $this->getRandomString(4);
-        $file_path   = $folder . "/" . $prefix . "_" . $rand_string . "_" . date('d_m_Y_H_i_s') . ".csv";
-        if (file_exists($file_path)) {
-            $this->generateUniqueOutfileName($prefix, $folder);
-        } else {
-            return $file_path;
-        }
-
-    }
-
     /**
-     * function to generate random strings
-     * @param       int     $length     number of characters in the generated string
-     * @return      string  a new string is created with random characters of the desired length
+     * Check if all the tables added in config file exists
+     *
+     * @return     boolean  true if table exists else false
      */
-    public function getRandomString($length = 4)
+    public function checkIfAllConfigTablesExists()
     {
-        $randstr = "";
-        // srand((double) microtime(TRUE) * 1000000);
-        //our array add all letters and numbers if you wish
-        $chars = array(
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'p',
-            'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '1', '2', '3', '4', '5',
-            '6', '7', '8', '9');
 
-        for ($rand = 0; $rand <= $length; $rand++) {
-            $random = rand(0, count($chars) - 1);
-            $randstr .= $chars[$random];
+        $result_array_diff = array();
+
+        if (!isset($this->childtables_conf)) {
+            $this->setChildTableConf();
         }
-        return $randstr;
+
+        $total_config_table_count = count($this->childtables_conf);
+
+        for ($cnt = 0; $cnt < $total_config_table_count; $cnt++) {
+
+            $arr_config_tables[] = $this->childtables_conf[$cnt]['name'];
+        }
+
+        $qry_table_list = "SHOW TABLES";
+
+        try {
+            $res_table_list = DB::select($qry_table_list);
+
+        } catch (\Illuminate\Database\QueryException $ex) {
+
+            $this->errors[] = $ex->getMessage();
+
+        }
+
+        if (count($res_table_list) > 0) {
+
+            $total_db_table_count = count($res_table_list);
+
+            $res_column_names = array_keys((array) $res_table_list[0]);
+            $res_column_name  = $res_column_names[0];
+
+            for ($count = 0; $count < $total_db_table_count; $count++) {
+
+                $tmp_array       = (array) $res_table_list[$count];
+                $arr_db_tables[] = $tmp_array[$res_column_name];
+            }
+
+            $result_array_diff = array_diff($arr_config_tables, $arr_db_tables);
+
+            if (count($result_array_diff) <= 0) {
+                return true;
+            }
+
+        }
+
+        $error_string = "Following Tables mentioned in config file do not exists in database. <br/>";
+        $error_string .= implode(", ", $result_array_diff);
+
+        $this->errors[] = $error_string;
+        return false;
+
     }
+
+    /* ################################ Test Functions #######################################################*/
 
     public function testSchedule()
     {
@@ -1025,28 +1188,39 @@ class AjCsvFileImport
         echo "<pre>";
         print_r($schedule_res);
     }
+    /* ################################ Test Functions #######################################################*/
 
-    public function is_directory_exists($filepath)
+    /* ################################ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #######################################################*/
+    public function updateTableFieldBySetOfDtaticValues($tablename, $columnupdatevalues, $limit, $batchsize)
     {
-        if (File::exists($filepath)) {
-            if (File::isDirectory($filepath)) {
-                return true;
-            } else {
-                return false;
+
+        $qry_update1 = "";
+
+        foreach ($columnupdatevalues as $column => $colvalues) {
+
+            $qry_update1 .= " SET " . $column . " =  (case   ";
+
+            foreach ($colvalues as $key => $value) {
+                $qry_update1 .= " WHEN " . $column . "='" . $key . "' THEN " . $value . " ";
             }
-        } else {
-            return false;
+
+            $qry_update1 .= " ) ";
+
+        }
+
+        $qry_update = " UPDATE `" . $tablename . "` tt1 SET tt1.value " . $qry_update1;
+
+        try {
+            DB::update($qry_update);
+
+        } catch (\Illuminate\Database\QueryException $ex) {
+
+            $this->errors[] = $ex->getMessage();
+
         }
 
     }
 
-    public function createDirectoryIfDontExists($filepath)
-    {
-
-        if (!$this->is_directory_exists($filepath)) {
-            File::makeDirectory($filepath, 0775, true, true);
-        }
-
-    }
+    /* ################################ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #######################################################*/
 
 }
