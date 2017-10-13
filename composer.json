@@ -1,6 +1,6 @@
 {
     "name": "ajency/laravel-fileimport",
-    "description": "This packag allows to insert large set of file data  into multiple tables",
+    "description": "This package allows to import large set of file data  into multiple tables",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -10,5 +10,11 @@
         }
     ],
     "minimum-stability": "dev",
-    "require": {}
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Ajency\\Ajfileimport\\": "src/"
+        },
+         
+    }
 }
