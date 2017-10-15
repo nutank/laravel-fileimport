@@ -3,7 +3,7 @@
 $ajimport_config['filetype']  = "csv";
 $ajimport_config['delimiter'] = ",";
 $ajimport_config['batchsize'] = "8";
-$ajimport_config['recipient'] = "parag@ajency.in";
+$ajimport_config['recipient'] = "paragredkar@gmail.com";
 
 
 $ajimport_config['temptablename'] = 'aj_import_temp';
@@ -86,6 +86,7 @@ $ajimport_config['childtables'][] = array('name' => 'users',
     'is_mandatary_insertid'                          => 'yes',
     /*'insertid_mtable'     => 'owner_id' ,*/
     'insertid_temptable'                             => array('users_id' => 'id'),
+    'fields_map_to_update_temptable_child_id'        => array("Email1" => "email"),
     'fields_map'                                     => array("Email1" => "email")); //'temp table field'=>'child table field')
 
 $ajimport_config['childtables'][] = array('name' => 'cities',
@@ -94,6 +95,7 @@ $ajimport_config['childtables'][] = array('name' => 'cities',
     'is_mandatary_insertid'                          => 'yes',
     /*'insertid_mtable'     => 'city_id' ,*/
     'insertid_temptable'                             => array('cities_id' => 'id'),
+    'fields_map_to_update_temptable_child_id'        => array("State" => "name"),
     'fields_map'                                     => array("State" => "name")) //'temp table field'=>'child table field'
 ;
 
@@ -103,6 +105,7 @@ $ajimport_config['childtables'][] = array('name' => 'areas',
     'is_mandatary_insertid'                          => 'yes',
     /*'insertid_mtable'     => 'locality_id' ,*/
     'insertid_temptable'                             => array('areas_id' => 'id'),
+    'fields_map_to_update_temptable_child_id'        => array("City" => "name", "cities_id" => "city_id"),
     'fields_map'                                     => array("City" => "name", "cities_id" => "city_id"), //'temp table field'=>'child table field'
 );
 
@@ -127,6 +130,7 @@ $ajimport_config['childtables'][] = array('name' => 'listings',
     'is_mandatary_insertid'                          => 'yes',
     //'insertid_mtable'     => 'locality_id' ,
     'insertid_temptable'                             => array('listings_id' => 'id'),
+    'fields_map_to_update_temptable_child_id'        => array("Company_Name" => "title", "areas_id" => "locality_id", "users_id" => "owner_id"),
     'fields_map'                                     => array("Company_Name" => "title", "Add"     => "display_address",
                                                               "Business_Type"=> "type", "areas_id" => "locality_id", "users_id" => "owner_id",
                                                               "Reference"    => "reference",

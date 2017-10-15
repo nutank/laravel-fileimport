@@ -795,6 +795,10 @@ class AjCsvFileImport
 
         $child_table_name = $child_table_conf['name'];
 
+        $batchsize = config('ajimportdata.batchsize');
+
+        $limit = $loop_count * $batchsize;
+
         $temp_fields_ar = array_keys($child_field_maps);
 
         Log::info('temp_fields_ar');
@@ -804,6 +808,17 @@ class AjCsvFileImport
         $child_fields_ar = array_values($child_field_maps);
 
         $import_libs = new AjImportlibs();
+
+
+        /* If any clumns on temptable needs to be updated by configured set of values from config file*/
+
+        if(isset($child_table_conf['columnupdatevalues'])){
+            $columnupdatevalues = $child_table_conf['columnupdatevalues'];
+
+            $this->updateTableFieldBySetOfDtaticValues($temp_tablename, $columnupdatevalues, $limit, $batchsize); 
+        }
+
+
 
         /** If default values has to be set for table insertion take the default values*/
         $child_default_values_string = "";
@@ -866,10 +881,7 @@ class AjCsvFileImport
 
         $child_fields = implode("`,`", $child_fields_ar);
 
-        $batchsize = config('ajimportdata.batchsize');
-
-        $limit = $loop_count * $batchsize;
-
+        
         $file_prefix = "aj_" . $child_table_name;
         $folder      = storage_path('app/Ajency/Ajfileimport/validchilddata/');
 
@@ -978,35 +990,58 @@ class AjCsvFileImport
             $field_maps      = $child_table_conf['fields_map'];
             $cnt_where       = 0;
             $where_condition = " ";
-            foreach ($field_maps as $tempfield => $childfield) {
+
+            Log::info('UpdateTempTableWithChildInsertIds:-- child_table_conf');
+            Log::info($child_table_conf);
+
+            /* update child insert id based on field_maps in config
+             * foreach ($field_maps as $tempfield => $childfield) {
 
                 $where_condition .= " AND ";
 
                 $where_condition .= " tmpdata." . $tempfield . "=" . "childtable." . $childfield . "";
                 $cnt_where++;
+            }*/
+            if(isset($child_table_conf['fields_map_to_update_temptable_child_id'])){
+
+                Log::info("isset(child_table_conf['fields_map_to_update_temptable_child_id']");
+                $fields_map_to_update_temptable_child_id = $child_table_conf['fields_map_to_update_temptable_child_id'];
+                //
+                foreach ($fields_map_to_update_temptable_child_id as $tempfield => $childfield) {
+
+                    $where_condition .= " AND ";
+
+                    $where_condition .= " tmpdata." . $tempfield . "=" . "childtable." . $childfield . "";
+                    $cnt_where++;
+                }    
+            
+
+                $qry_update_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
+                SET
+                    tmpdata." . $child_insert_id_on_temp_table . " = childtable." . $child_insert_id_field . "
+                WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  tmpdata.aj_isvalid!='N'" . $where_condition;
+
+                try {
+
+                    Log::info('<br/> \n  UPDATER child ids(' . $child_table_conf['name'] . ') on temp table   :----------------------------------');
+
+                    Log::info($qry_update_child_ids);
+
+                    DB::update($qry_update_child_ids);
+
+                    //update valid rows in temp table with the valid inserts on child table.
+
+                } catch (\Illuminate\Database\QueryException $ex) {
+
+                    // Note any method of class PDOException can be called on $ex.
+                    $this->errors[] = $ex->getMessage();
+
+                }
+
             }
 
-            $qry_update_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
-            SET
-                tmpdata." . $child_insert_id_on_temp_table . " = childtable." . $child_insert_id_field . "
-            WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  tmpdata.aj_isvalid!='N'" . $where_condition;
 
-            try {
 
-                Log::info('<br/> \n  UPDATER child ids(' . $child_table_conf['name'] . ') on temp table   :----------------------------------');
-
-                Log::info($qry_update_child_ids);
-
-                DB::update($qry_update_child_ids);
-
-                //update valid rows in temp table with the valid inserts on child table.
-
-            } catch (\Illuminate\Database\QueryException $ex) {
-
-                // Note any method of class PDOException can be called on $ex.
-                $this->errors[] = $ex->getMessage();
-
-            }
 
             /* check if child insert id is mandatary on temporary table, and update the records in the current batch to invalid if the child insert id on temp table is empty */
             if (isset($child_table_conf['is_mandatary_insertid'])) {
@@ -1036,7 +1071,7 @@ class AjCsvFileImport
 
             $string = "Total child count : " . ($total_childs - 1) . " total batches :" . ($total_batches - 1);
 
-            Log::info($qry_update_child_ids);
+          /*  Log::info($qry_update_child_ids);*/
             Log::info($string);
 
         }
@@ -1208,7 +1243,7 @@ class AjCsvFileImport
 
         }
 
-        $qry_update = " UPDATE `" . $tablename . "` tt1 SET tt1.value " . $qry_update1;
+        $qry_update = " UPDATE `" . $tablename . "` tt1 SET tt1.value " . $qry_update1." WHERE  tt1.id in (SELECT id FROM (SELECT id FROM " . $tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2  )  AND  tt1.aj_isvalid!='N'";
 
         try {
             DB::update($qry_update);
