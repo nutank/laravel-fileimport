@@ -470,7 +470,8 @@ class AjCsvFileImport
 
         $qry_load_data = "LOAD DATA LOCAL INFILE '" . $file_path . "' INTO TABLE `" . $temp_tablename . "`
                  FIELDS TERMINATED BY ','
-                OPTIONALLY ENCLOSED BY '\"'
+                OPTIONALLY ENCLOSED BY '\"' 
+                ESCAPED BY '\b'  
                 LINES  TERMINATED BY '\n' IGNORE 1 LINES  ( `";
         $qry_load_data .= implode("`,`", $file_headers) . "` ) ;    ";
 
@@ -938,7 +939,8 @@ class AjCsvFileImport
 
         $qry_load_data = "LOAD DATA LOCAL INFILE '" . $file_path . "' INTO TABLE " . $child_table_name . "
          FIELDS TERMINATED BY ','
-        OPTIONALLY ENCLOSED BY '\"'
+        OPTIONALLY ENCLOSED BY '\"' 
+        ESCAPED BY '\b'  
         LINES  TERMINATED BY '\n'    ( `";
         $qry_load_data .= $child_fields . "` ) ";
 
