@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use View;
+use Log;
 
 class AjSendMail extends Mailable
 {
@@ -30,10 +31,12 @@ class AjSendMail extends Mailable
     public function build()
     {
         //return $this->view('view.name');
-        if (isset($params['attachment'])) {
-            return $this->view('AjcsvimportView::importlogs')->attach($this->params['attachment']);
+        Log:info("Ajfileimport\Mail :------------------------");
+        Log::info($this->params);
+        if (isset($this->params['attachment'])) {
+            return $this->view('AjcsvimportView::importlogs')->attach($this->params['attachment'])->subject('Aj laravel import log')->from('parag@ajency.in');
         } else {
-            return $this->view('AjcsvimportView::importlogs');
+            return $this->view('AjcsvimportView::importlogs')->subject('Aj laravel import log')->from('parag@ajency.in');
         }
 
     }

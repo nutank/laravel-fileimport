@@ -1076,7 +1076,7 @@ class AjCsvFileImport
 
         }
 
-        if ($current_child_count == ($total_childs - 1)) {
+        if ($current_child_count == ($total_childs - 1) && $loop_count == ($total_batches - 1) ) {
 
             Log::info('CALL MASTER INSERT NOW');
             //$this->sendErrorLogFile();
@@ -1100,6 +1100,8 @@ class AjCsvFileImport
         $file_prefix    = "aj_errorlog";
         $folder         = storage_path('app/Ajency/Ajfileimport/errorlogs/');
 
+        $import_libs->createDirectoryIfDontExists($folder);
+
         $errorlog_outfile_path = $import_libs->generateUniqueOutfileName($file_prefix, $folder);
 
         Log::info("sendErrorLogFile:-----------------------------------------------");
@@ -1108,13 +1110,26 @@ class AjCsvFileImport
 
         $file_path = str_replace("\\", "\\\\", $errorlog_outfile_path);
 
+        $temptable_db = new AjTable($temp_tablename);
+
+        $temptable_db->setTableSchema();
+        $temptable_schema = $temptable_db->getTableSchema();
+
+        foreach ($temptable_schema as $field_value) {
+            $fields_names_ar[] = $field_value->Field;
+        }
+
         try {
 
-            $qry_select_valid_data = "SELECT  * INTO OUTFILE '" . $file_path . "'
+            $qry_select_valid_data = "SELECT '" . implode("', '", $fields_names_ar) . "'  ";
+
+            $qry_select_valid_data .= " UNION ALL ";
+
+
+            $qry_select_valid_data.= "SELECT  * INTO OUTFILE '" . $file_path . "'
                                     FIELDS TERMINATED BY ','
                                     OPTIONALLY ENCLOSED BY '\"'
-                                    LINES TERMINATED BY '\n'
-                                    FIELDS ESCAPED BY ''
+                                    LINES TERMINATED BY '\n'                                     
                                     FROM " . $temp_tablename . " outtable WHERE aj_isvalid='N'";
 
             Log:info($qry_select_valid_data);
