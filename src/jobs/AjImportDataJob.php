@@ -54,32 +54,30 @@ class AjImportDataJob implements ShouldQueue
 
             case 'validateunique':Log::info('Processing validateunique ');
                 $aj_file_import->processUniqueFieldValidationQueue($this->params);
-                
 
                 break;
             case 'insert_records':
-            Log::info('Processing insert_records ');
-            $aj_file_import->addInsertRecordsQueue($this->params);
-                
+                Log::info('Processing insert_records ');
+                $aj_file_import->addInsertRecordsQueue($this->params);
 
                 break;
 
-           /* case 'validatechildinsert':$aj_file_import->processTempTableFieldValidation($this->params);
+                /* case 'validatechildinsert':$aj_file_import->processTempTableFieldValidation($this->params);
 
                 Log::info('Processing validatechildinsert ');
 
                 break;
-            case 'insertvalidchilddata':$aj_file_import->exportValidTemptableDataToFile($this->params);
+                case 'insertvalidchilddata':$aj_file_import->exportValidTemptableDataToFile($this->params);
 
                 Log::info('Processing insertvalidchilddata ');
 
                 break;
 
-            case 'tempupdatechildid':$aj_file_import->UpdateTempTableWithChildInsertIds($this->params);
+                case 'tempupdatechildid':$aj_file_import->UpdateTempTableWithChildInsertIds($this->params);
                 Log::info('Processing tempupdatechildid ');
 
                 break;
-            case 'masterinsert':$aj_file_import->process_masterinsert_queue($this->params);
+                case 'masterinsert':$aj_file_import->process_masterinsert_queue($this->params);
                 Log::info('Processing masterinsert ');*/
 
                 break;

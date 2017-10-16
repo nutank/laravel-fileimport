@@ -17,7 +17,7 @@ class AjSchemaValidator
     private $exists = false;
     private $errors = [];
     /**
-     * 
+     *
      * For a table,
      * Update the records on temp table with error on following :--
      * select records from temporary table whose field value are empty and which should be non null in the main table.

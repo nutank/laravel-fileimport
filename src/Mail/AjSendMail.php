@@ -5,8 +5,8 @@ namespace Ajency\Ajfileimport\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
-use View;
 use Log;
+use View;
 
 class AjSendMail extends Mailable
 {

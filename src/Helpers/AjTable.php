@@ -8,6 +8,7 @@ use Response;
 
 /**
  * Class to validate the csv data imported to temporary table, based on master/child table schema
+ * read and set table schema, get primary/unique keys
  */
 class AjTable
 {

@@ -1079,7 +1079,7 @@ class AjCsvFileImport
         if ($current_child_count == ($total_childs - 1) && $loop_count == ($total_batches - 1) ) {
 
             Log::info('CALL MASTER INSERT NOW');
-            //$this->sendErrorLogFile();
+            $this->sendErrorLogFile();
 
             //$this->process_masterinsert_queue($params);
 
