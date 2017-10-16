@@ -1047,7 +1047,7 @@ class AjCsvFileImport
             if (isset($child_table_conf['is_mandatary_insertid'])) {
                 if ($child_table_conf['is_mandatary_insertid'] == "yes") {
                     $qry_update_failed_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
-                        SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )   AND  tmpdata.aj_isvalid!='N'";
+                        SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  AND   tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )   AND  tmpdata.aj_isvalid!='N'";
 
                     try {
 
@@ -1239,12 +1239,14 @@ class AjCsvFileImport
                 $qry_update1 .= " WHEN " . $column . "='" . $key . "' THEN " . $value . " ";
             }
 
-            $qry_update1 .= " ) ";
+            $qry_update1 .= " ELSE ".$column." END ) ";
 
         }
 
-        $qry_update = " UPDATE `" . $tablename . "` tt1 SET tt1.value " . $qry_update1." WHERE  tt1.id in (SELECT id FROM (SELECT id FROM " . $tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2  )  AND  tt1.aj_isvalid!='N'";
+        $qry_update = " UPDATE `" . $tablename . "` tt1 " . $qry_update1." WHERE  tt1.id in (SELECT id FROM (SELECT id FROM " . $tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2  )  AND  tt1.aj_isvalid!='N'";
 
+        Log::info("updateTableFieldBySetOfDtaticValues:-----------------------");
+        Log::info($qry_update);
         try {
             DB::update($qry_update);
 

@@ -135,7 +135,7 @@ $ajimport_config['childtables'][] = array('name' => 'listings',
                                                               "Business_Type"=> "type", "areas_id" => "locality_id", "users_id" => "owner_id",
                                                               "Reference"    => "reference",
                                                           ), //'temp table field'=>'child table field'
-    'columnupdatevalues'                             => array('Type' => array("Wholeseller" => 11, "Retailer" => 12, "Manufacturer" => 13)),
+    'columnupdatevalues'                             => array('Business_Type' => array("Wholeseller" => 11, "Retailer" => 12, "Manufacturer" => 13)),
 
     /*serialize array form at array('column on tagle'=>array of values to be serialized where key will be a static provided by user and value will be field from temp table)    */
     'serializevalues'                                => array('other_details' => array('website' => 'Web', 'establish_year' => 'Year'),
