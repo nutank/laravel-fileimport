@@ -24,7 +24,9 @@ class AjFileImportController extends Controller
     public function showUploadFile()
     {
 
-        return view('ajfileimport::index');
+        $aj_file_import = new AjCsvFileImport();
+        $form_view = $aj_file_import->fileuploadform();
+        return $form_view;
 
     }
 

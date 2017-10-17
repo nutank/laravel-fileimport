@@ -45,13 +45,16 @@ class AjCsvFileImport
         }
 
     }
+   
 
-    public function index()
+
+    public function fileuploadform()
     {
 
-        return view('ajency/ajfileimport::index');
+        return view('ajfileimport::index');
 
     }
+
 
     public function init($request)
     {
