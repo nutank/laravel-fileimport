@@ -29,6 +29,20 @@ Route::get('/ajimportfile', 'AjFileImportController@showUploadFile')->name('show
 Route::get('/ajviewdataforimport', 'AjFileImportController@downloadTemptableDataCsv')->name('downloadtemptablecsv');
 
 //Route::get('/laraqueue', 'AjFileImportController@send');
+//
+
+
+/*Test routes */
+
+// test ajax function 
+ 
+Route::post('/startajimport', 'AjFileImportController@uploadFile') ;
+ 
+
+Route::post('submit',function(){
+	var_dump(Request::all());
+});
+
 
 
 

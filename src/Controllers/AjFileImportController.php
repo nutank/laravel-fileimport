@@ -39,7 +39,10 @@ class AjFileImportController extends Controller
     {
         $aj_file_import = new AjCsvFileImport();
 
-        $aj_file_import->init($request);
+        $result = $aj_file_import->init($request);
+
+        return $result;
+
 
     }
 

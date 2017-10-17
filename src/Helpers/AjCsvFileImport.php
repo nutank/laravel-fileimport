@@ -34,9 +34,12 @@ class AjCsvFileImport
 
     private $temp_table_headers;
     private $file_path;
-    private $errors;
+    private $errors = [];
     private $childtables_conf;
     private $temptable_fields;
+    private $logs = [];
+    private $messages;
+
 
     public function __construct($file_path = "")
     {
@@ -61,23 +64,43 @@ class AjCsvFileImport
 
         $import_libs = new AjImportlibs();
 
-        echo "<br/> Checking for pending AjCsvFileImport pending jobs ...";
+        //echo "<br/> Checking for pending AjCsvFileImport pending jobs ...";
+        $this->msg = "<br/> Checking for pending AjCsvFileImport pending jobs ...";
+
         $prev_pending_jobs = $this->areTherePreviousJobsPending();
 
         if ($prev_pending_jobs === true) {
-            $import_libs->printLogs($this->getErrorLogs());
-            exit();
+            //$import_libs->printLogs($this->getErrorLogs());
+            $this->msg.=" - Error";
+            $this->logs[] = $this->msg;
+            $this->msg ="";
+            return $this->ajx_return_logs();
+            
+        }
+        else{
+            $this->msg.=" - Passed";
         }
 
-        echo "<br/> Checking if tables from configuration file exists in database....";
+        $this->logs[] = $this->msg;
+
+        //echo "<br/> Checking if tables from configuration file exists in database....";
+        $this->msg = "<br/> Checking if tables from configuration file exists in database....";
         $result = $this->checkIfAllConfigTablesExists();
 
         if ($result == true) {
-            echo " Passed ";
+            //echo " Passed ";
+            $this->msg.=" Passed ";
+            $this->logs[] = $this->msg;
+
         } else {
             $import_libs->printLogs($this->getErrorLogs());
-            exit();
+            $this->msg.=" Failed ";
+            $this->logs[] = $this->msg;
+            return $this->ajx_return_logs();
+             
         }
+
+        $this->msg ="";
 
         $res = $this->clearPreviousImportFiles();
 
@@ -91,6 +114,8 @@ class AjCsvFileImport
 
         $this->setFilePath($file_path);
         $this->importFileData($file_handle);
+
+        return response()->json(array('logs'=>$this->logs,'errors'=>$this->errors,'msg'=>$this->msg));
 
     }
 
@@ -248,25 +273,35 @@ class AjCsvFileImport
         /* $real_file_path = $this->getFilePath();
         $file           = new FileHandler(array('filepath' => $real_file_path));*/
 
-        echo "<br/>Validating file....";
+        //echo "<br/>Validating file....";
+        //$this->logs[]= "<br/>Validating file....";
+        $this->msg = "<br/>Validating file....";
         $result = $file->isValidFile();
 
         if ($result !== true) {
 
             if (count($file->getErrors()) >= 0) {
 
-                $import_libs->printLogs($file->getErrors());
+                //$import_libs->printLogs($file->getErrors());
+                array_merge($this->errors,$file->getErrors());
+                
             } else {
-                echo "Invalid File.";
+                //echo "Invalid File.";
+                $this->msg.=" - Invalid File.";
+                $this->errors[] = $this->msg;
             }
+            $this->msg ="";
             return false;
 
         } else {
 
-            if (count($file->getLogs()) >= 0) {
+            /*if (count($file->getLogs()) >= 0) {
 
                 $import_libs->printLogs($file->getLogs());
-            }
+            }*/
+            $this->msg.=" - Valid File.";
+            $this->logs[] = $this->msg;
+            $this->msg ="";
             return true;
         }
 
@@ -584,7 +619,10 @@ class AjCsvFileImport
 
         }
 
-        echo "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
+        //echo "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
+        
+        $this->logs[] =  "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
+        return array('logs'=>$this->logs,'errors'=>$this->errors);
         Log::info("Executing schedule command");
         /* $app          = App::getFacadeRoot();
     $schedule     = $app->make(Schedule::class);
@@ -1230,6 +1268,13 @@ class AjCsvFileImport
         $this->errors[] = $error_string;
         return false;
 
+    }
+
+
+
+    public function ajx_return_logs(){
+
+        return array('logs'=>$this->logs,'errors'=>$this->errors,'msg'=>$this->msg);
     }
 
     /* ################################ Test Functions #######################################################*/
