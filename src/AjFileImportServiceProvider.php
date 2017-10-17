@@ -26,6 +26,7 @@ class AjFileImportServiceProvider extends ServiceProvider
 
         $this->publishes([
             __DIR__ . '/config' => config_path('ajimportdata'),
+            __DIR__.'/public' => public_path('')             
         ]);
 
         /*$this->app->booted(function () {

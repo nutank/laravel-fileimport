@@ -54,7 +54,11 @@ class AjCsvFileImport
     public function fileuploadform()
     {
 
-        return view('ajfileimport::index');
+         
+        $loader_gif =   realpath(__DIR__ . '..\..\assets\images\loader.gif'); 
+
+        $data = array('loader_gif'=>$loader_gif ) ;
+        return view('ajfileimport::index')->with($data);
 
     }
 
@@ -65,7 +69,7 @@ class AjCsvFileImport
         $import_libs = new AjImportlibs();
 
         //echo "<br/> Checking for pending AjCsvFileImport pending jobs ...";
-        $this->msg = "<br/> Checking for pending AjCsvFileImport pending jobs ...";
+        $this->msg = "<br/> Checking for pending FileImport pending jobs ...";
 
         $prev_pending_jobs = $this->areTherePreviousJobsPending();
 

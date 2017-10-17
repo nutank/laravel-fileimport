@@ -10,25 +10,31 @@
           <br />
           <input type="file" name="ajfile" />
           <br /><br />
-          <input type="submit" value="Upload" id="btn_ajupload" />
+          <input type="submit" value="Upload" id="btn_ajupload" /><span id="el_loader"></span>
       </form>
 
-
+  <div id='response_msg_container1'></div>
       <div id='response_msg_container'></div>
 
       <script>
 
         var form = document.querySelector('#aj_frm_uploadfile');
         var request = new XMLHttpRequest();
+        var loader_gif =   "{{asset('ajimport_assets/images/loader.gif')}}";
 
 
-        form.addEventListener('submit',function(e){
+        document.getElementById('btn_ajupload').addEventListener('click',function(e){
+ 
+
+
+
+
+
           e.preventDefault();
-          var formdata = new FormData(form);
 
+          document.getElementById('el_loader').innerHTML="<img src='"+loader_gif+"' width='30'   />";
 
-
-
+          var formdata = new FormData(form); 
 
 
           request.onreadystatechange = function () {
@@ -66,8 +72,8 @@
                   }
                 }
 
-                document.getElementById('response_msg_container').innerHTML = response_msg_container_message;
-
+               document.getElementById('response_msg_container').innerHTML = response_msg_container_message;
+              // document.getElementById('el_loader').innerHTML="";
 
 
 
@@ -81,6 +87,10 @@
 
           request.open('post','startajimport');
           request.send(formdata);
+
+})
+        form.addEventListener('submit',function(e){
+         
 
         });
         
