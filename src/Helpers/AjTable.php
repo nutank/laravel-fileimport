@@ -218,16 +218,6 @@ class AjTable
 
     }
 
-    public function getConfigTableData()
-    {
-
-    }
-
-    public function loadDataInChildTable()
-    {
-        $childtables = config('ajimportdata.childtables'); //Get child table from config
-    }
-
     public function getUniqFields()
     {
 
@@ -262,8 +252,6 @@ class AjTable
     public function downloadTableDataAsCsv()
     {
 
-        $temp_tablename = config('ajimportdata.temptablename');
-
         $import_libs = new AjImportlibs();
 
         $file_prefix = "aj_" . $this->table_name;
@@ -296,7 +284,7 @@ class AjTable
                                     OPTIONALLY ENCLOSED BY '\"'
                                     ESCAPED BY ''
                                     LINES TERMINATED BY '\n'
-                                    FROM `" . $temp_tablename . "`  outtable  ";
+                                    FROM `" . $this->table_name . "`  outtable  ";
 
             Log::info('<br/> \n  downloadTableDataAsCsv  :----------------------------------');
             Log::info("filepath" . $file_path);
@@ -305,18 +293,7 @@ class AjTable
             DB::select($qry_select_valid_data);
             $headers = array('Content-Type' => 'text/csv');
 
-            return response()->download($file_path, $temp_tablename . '.csv', $headers);
-
-            /*
-            $headers = array('Content-Type' => 'text/csv');
-
-            $file_handle = fopen($child_outfile_name,'r');
-
-            Response::download($child_outfile_name, $temp_tablename.'.csv', $headers);
-
-            fclose($file_handle);*/
-
-            //update valid rows in temp table with the valid inserts on child table.
+            return response()->download($file_path, $this->table_name . date("_d_m_Y_H_i_s").'.csv', $headers);
 
         } catch (\Illuminate\Database\QueryException $ex) {
 
@@ -325,6 +302,27 @@ class AjTable
 
         }
 
+    }
+
+    public function getErrors()
+    {
+        return $this->errors;
+    }
+
+    public function getLogs()
+    {
+        return $this->logs;
+    }
+
+    public function getMsg()
+    {
+        return $this->msg;
+    }
+
+    public function getErrorsLogsMsg()
+    {
+
+        $data = array("errors" => $this->errors, "logs" => $this->logs, "msg" => $this->msg);
     }
 
 }

@@ -2,6 +2,7 @@
 /**
  * Ajency Laravel CSV Import Package
  * Note : To be used for tables with field names without spaces
+ * Read wiki "https://github.com/ajency/laravel-fileimport/wiki" for usage
  *
  */
 namespace Ajency\Ajfileimport\Helpers;
@@ -15,13 +16,8 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB; //files storage for import
-
-//use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
 use Log;
-
-/*use View;
-use Ajency\Ajfileimport\Views\AjSchemaValidator;*/
 
 /**
  * Class for aj csv file import.
@@ -47,12 +43,9 @@ class AjCsvFileImport
 
     public function fileuploadform()
     {
-
         $loader_gif = realpath(__DIR__ . '..\..\assets\images\loader.gif');
-
-        $data = array('loader_gif' => $loader_gif);
+        $data       = array('loader_gif' => $loader_gif);
         return view('ajfileimport::index')->with($data);
-
     }
 
     public function init($request)
@@ -60,13 +53,12 @@ class AjCsvFileImport
 
         $import_libs = new AjImportlibs();
 
-        //echo "<br/> Checking for pending AjCsvFileImport pending jobs ...";
         $this->msg = "<br/> Checking for pending FileImport pending jobs ...";
 
         $prev_pending_jobs = $this->areTherePreviousJobsPending();
 
         if ($prev_pending_jobs === true) {
-            //$import_libs->printLogs($this->getErrorLogs());
+
             $this->msg .= " - Error";
             $this->logs[] = $this->msg;
             $this->msg    = "";
@@ -78,12 +70,11 @@ class AjCsvFileImport
 
         $this->logs[] = $this->msg;
 
-        //echo "<br/> Checking if tables from configuration file exists in database....";
         $this->msg = "<br/> Checking if tables from configuration file exists in database....";
         $result    = $this->checkIfAllConfigTablesExists();
 
         if ($result == true) {
-            //echo " Passed ";
+
             $this->msg .= " Passed ";
             $this->logs[] = $this->msg;
 
@@ -109,8 +100,6 @@ class AjCsvFileImport
             $this->set_ajx_return_logs($params);
 
             return response()->json($this->ajx_return_logs());
-
-            //return false;
         }
 
         $file_path = $file_handle->getFilePath();
@@ -125,6 +114,20 @@ class AjCsvFileImport
     public function getErrorLogs()
     {
         return $this->errors;
+    }
+
+    public function ajx_return_logs()
+    {
+
+        return array('logs' => $this->logs, 'errors' => $this->errors, 'msg' => $this->msg);
+    }
+
+    public function set_ajx_return_logs($params)
+    {
+        $this->logs   = array_merge($this->logs, $params['logs']);
+        $this->errors = array_merge($this->errors, $params['errors']);
+        $this->msg    = $this->msg . $params['msg'];
+
     }
 
     public function areTherePreviousJobsPending()
@@ -172,16 +175,9 @@ class AjCsvFileImport
     }
 
     /**
-     * Loads a filedata in table.
+     * Get the configuration added in configurations and stores.
+     * Any header with spaces will be replaces with underscores.
      */
-    public function loadFiledataInTable($temp_table_headers)
-    {
-        foreach ($temp_table_headers as $header) {
-            $this->$temp_table_headers[] = str_replace(' ', '_', $header);
-        }
-
-    }
-
     public function setChildTableConf()
     {
         $childtables_conf = config('ajimportdata.childtables'); //Get child table from config
@@ -211,6 +207,10 @@ class AjCsvFileImport
         return $this->childtables_conf;
     }
 
+    /**
+     * gets file header configuration added in config file and stores it.
+     * Any space charater in header name will be replaced by underscore.
+     */
     public function setFileHeaderConf()
     {
 
@@ -242,10 +242,15 @@ class AjCsvFileImport
         return str_replace(' ', '_', $field_name);
     }
 
+    /**
+     * check for validations of file, and does configuration checks.
+     * Creates temporary table and imports the csv file data in the table
+     * @param      <type>  $file_handle  The file handle
+     */
     public function importFileData($file_handle)
     {
 
-        $result_loadfile = $this->loadFileData($file_handle);
+        $result_loadfile = $this->validateFile($file_handle);
         if ($result_loadfile === false) {
             exit();
         }
@@ -267,17 +272,12 @@ class AjCsvFileImport
         //$this->insertUpdateChildTable(); //VALIDATING CHILD TABLE FIELDS
     }
 
-    public function loadFileData($file)
+    public function validateFile($file)
     {
         $import_libs = new AjImportlibs();
 
         DB::connection()->disableQueryLog();
 
-        /* $real_file_path = $this->getFilePath();
-        $file           = new FileHandler(array('filepath' => $real_file_path));*/
-
-        //echo "<br/>Validating file....";
-        //$this->logs[]= "<br/>Validating file....";
         $this->msg = "<br/>Validating file....";
         $result    = $file->isValidFile();
 
@@ -285,15 +285,15 @@ class AjCsvFileImport
 
             if (count($file->getErrors()) >= 0) {
 
-                //$import_libs->printLogs($file->getErrors());
-                array_merge($this->errors, $file->getErrors());
+                // array_merge($this->errors, $file->getErrors());
+                $this->set_ajx_return_logs($file->getErrorsLogsMsg());
 
             } else {
                 //echo "Invalid File.";
                 $this->msg .= " - Invalid File.";
                 $this->errors[] = $this->msg;
             }
-            $this->msg = "";
+
             return false;
 
         } else {
@@ -311,8 +311,9 @@ class AjCsvFileImport
     }
 
     /**
+     * creates the query part of temp table creation, where fields type/sizes are added in query for temp table Also index part of query
      * Match with child/master table field and get the temp table field in query
-     * temp table field type and sizes are set on mastertable/child table class, when setTableschema is called on the ajtable class
+     * temp table field type and sizes are set on mastertable/child table  object of class, when setTableschema is called on the ajtable object of class
      * @param      <type>   $mastertable_conf  The mastertable conf
      * @param      <type>   $mastertable       The mastertable
      * @param      boolean  $is_child          Indicates if child
@@ -348,8 +349,6 @@ class AjCsvFileImport
             $tfield_name = $this->getFormatedTableHeaderName($mfield_value);
 
             $cur_mtable_field = $mtable_fields[$mfield_key];
-
-            //$qry__create_table .= "<br/>";
 
             if (!isset($this->temptable_fields[$tfield_name])) {
 
@@ -469,8 +468,9 @@ class AjCsvFileImport
 
         $qry__create_table .= $qry_childtable_insert_ids;
 
-        $qry__create_table .= ", aj_error_log  LONGTEXT   ";
-        $qry__create_table .= ", aj_isvalid  CHAR(1) NOT NULL DEFAULT '' ";
+        $qry__create_table .= ", `aj_error_log`  LONGTEXT   ";
+        $qry__create_table .= ", `aj_isvalid`  CHAR(1) NOT NULL DEFAULT '' ";
+        $qry__create_table .= ", `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ";
         $qry__create_table .= $qry_indexes;
         $qry__create_table .= " )  ENGINE=InnoDB;";
         //dd($qry__create_table);
@@ -565,12 +565,6 @@ class AjCsvFileImport
     public function insertUpdateChildTable()
     {
 
-        /*$childtable = new AjTable('testuser');
-        $childtable->setTableSchema();
-        $childvalidator = new AjSchemaValidator('testuser');
-        $params = array('maxlength'=>50);
-        $childvalidator->validateFieldLength('uemail',$params);*/
-
         $temp_tablename = config('ajimportdata.temptablename');
         $mtable         = new AjTable($temp_tablename);
         $mtable->setTableSchema();
@@ -636,7 +630,7 @@ class AjCsvFileImport
     }
 
     /**
-     * Adds a validate unique.
+     * Adds a validate unique job queue
      *
      * @param      integer  $temp_records_count  The temporary records count
      */
@@ -719,24 +713,6 @@ class AjCsvFileImport
             //AjImportDataJob::dispatch($job_params)->onQueue('validatechildinsert');
             $this->processTempTableFieldValidation($job_params);
 
-            /* $validchildinsert_params = array('childtable' => $child_table_conf_list[$child_count], 'loop_count' => $i, 'type' => 'insertvalidchilddata'  );
-            AjImportDataJob::dispatch($validchildinsert_params)->onQueue('insertvalidchilddata');*/
-
-            //$this->dispatch(new AjImportDataJob($job_params));
-            /*Log::info("CURRENT CHILD COUNT :" . $child_count . " TOTAL CHILD COUNT :" . ($total_no_child_tables - 1));
-            Log::info("CURRENT LOOP COUNT :" . $i . " tot  loops-1:" . ($loops - 1));
-            if (($child_count == ($total_no_child_tables - 1)) && ($i == ($loops - 1))) {
-
-            Log::info("Executing schedule command");
-            $app      = App::getFacadeRoot();
-            $schedule = $app->make(Schedule::class);
-            $schedule_res = $schedule->exec('php artisan queue:work --queue=validateunique,validatechildinsert,insertvalidchilddata,tempupdatechildid,masterinsert');
-
-            var_dump($schedule_res );*/
-            /*  //Run job queue
-        Artisan::call('queue:work', [
-        '--queue' => 'validateunique,childinsert,tempupdatechildid,masterinsert'
-        ]);*/
         }
 
     }
@@ -1128,6 +1104,9 @@ class AjCsvFileImport
 
     }
 
+    /**
+     * Sends an error log file to the email id added in config file
+     */
     public function sendErrorLogFile()
     {
 
@@ -1264,34 +1243,14 @@ class AjCsvFileImport
 
     }
 
-    public function ajx_return_logs()
-    {
-
-        return array('logs' => $this->logs, 'errors' => $this->errors, 'msg' => $this->msg);
-    }
-
-    public function set_ajx_return_logs($params)
-    {
-        $this->logs[]   = $params['logs'];
-        $this->errors[] = $params['errors'];
-        $this->msg      = $this->msg . $params['msg'];
-
-    }
-
-    /* ################################ Test Functions #######################################################*/
-
-    public function testSchedule()
-    {
-        Log::info("Executing schedule command");
-        $app          = App::getFacadeRoot();
-        $schedule     = $app->make(Schedule::class);
-        $schedule_res = $schedule->command('queue:work --queue=validateunique,insert_records');
-        echo "<pre>";
-        print_r($schedule_res);
-    }
-    /* ################################ Test Functions #######################################################*/
-
-    /* ################################ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #######################################################*/
+    /**
+     * Allows to update values on provided csv data with the set of key value pair, and use these values fr insertion to other tables
+     *
+     * @param      string  $tablename           The tablename
+     * @param      <type>  $columnupdatevalues  The columnupdatevalues
+     * @param      string  $limit               The limit
+     * @param      string  $batchsize           The batchsize
+     */
     public function updateTableFieldBySetOfDtaticValues($tablename, $columnupdatevalues, $limit, $batchsize)
     {
 
@@ -1324,6 +1283,17 @@ class AjCsvFileImport
 
     }
 
-    /* ################################ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #######################################################*/
+    /* ################################ Test Functions #######################################################*/
+
+    public function testSchedule()
+    {
+        Log::info("Executing schedule command");
+        $app          = App::getFacadeRoot();
+        $schedule     = $app->make(Schedule::class);
+        $schedule_res = $schedule->command('queue:work --queue=validateunique,insert_records');
+        echo "<pre>";
+        print_r($schedule_res);
+    }
+    /* ################################ Test Functions #######################################################*/
 
 }

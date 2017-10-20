@@ -45,6 +45,12 @@ class FileHandler
         return $this->msg;
     }
 
+
+    public function getErrorsLogsMsg(){
+
+        $data =  array("errors"=>$this->errors, "logs"=>$this->logs, "msg"=>$this->msg);
+    }
+
     public function storeFile($request)
     {
 
@@ -207,6 +213,8 @@ class FileHandler
 
         return $file_path;
     }
+
+    
 
     /*public function is_directory_exists($filepath)
 {
