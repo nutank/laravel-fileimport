@@ -9,18 +9,15 @@ namespace Ajency\Ajfileimport\Helpers;
 use Ajency\Ajfileimport\Helpers\AjImportlibs;
 use Ajency\Ajfileimport\Helpers\AjSchemaValidator;
 use Ajency\Ajfileimport\Helpers\AjTable;
+//Added to schedule the job queue
 use Ajency\Ajfileimport\jobs\AjImportDataJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
-
-//Added to schedule the job queue
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB; //files storage for import
 
 //use Illuminate\Filesystem\Filesystem;
-
 use Illuminate\Support\Facades\File;
-//Added to schedule the job queue
 use Log;
 
 /*use View;
@@ -40,7 +37,6 @@ class AjCsvFileImport
     private $logs = [];
     private $messages;
 
-
     public function __construct($file_path = "")
     {
         if ($file_path != "") {
@@ -48,20 +44,16 @@ class AjCsvFileImport
         }
 
     }
-   
-
 
     public function fileuploadform()
     {
 
-         
-        $loader_gif =   realpath(__DIR__ . '..\..\assets\images\loader.gif'); 
+        $loader_gif = realpath(__DIR__ . '..\..\assets\images\loader.gif');
 
-        $data = array('loader_gif'=>$loader_gif ) ;
+        $data = array('loader_gif' => $loader_gif);
         return view('ajfileimport::index')->with($data);
 
     }
-
 
     public function init($request)
     {
@@ -75,43 +67,50 @@ class AjCsvFileImport
 
         if ($prev_pending_jobs === true) {
             //$import_libs->printLogs($this->getErrorLogs());
-            $this->msg.=" - Error";
+            $this->msg .= " - Error";
             $this->logs[] = $this->msg;
-            $this->msg ="";
+            $this->msg    = "";
             return $this->ajx_return_logs();
-            
-        }
-        else{
-            $this->msg.=" - Passed";
+
+        } else {
+            $this->msg .= " - Passed";
         }
 
         $this->logs[] = $this->msg;
 
         //echo "<br/> Checking if tables from configuration file exists in database....";
         $this->msg = "<br/> Checking if tables from configuration file exists in database....";
-        $result = $this->checkIfAllConfigTablesExists();
+        $result    = $this->checkIfAllConfigTablesExists();
 
         if ($result == true) {
             //echo " Passed ";
-            $this->msg.=" Passed ";
+            $this->msg .= " Passed ";
             $this->logs[] = $this->msg;
 
         } else {
             $import_libs->printLogs($this->getErrorLogs());
-            $this->msg.=" Failed ";
+            $this->msg .= " Failed ";
             $this->logs[] = $this->msg;
-            return $this->ajx_return_logs();
-             
+            return response()->json($this->ajx_return_logs());
+
         }
 
-        $this->msg ="";
+        $this->msg = "";
 
         $res = $this->clearPreviousImportFiles();
 
         $file_handle = new FileHandler();
         $result      = $file_handle->storeFile($request);
         if ($result == false) {
-            return;
+
+            $params['logs']   = $file_handle->getLogs();
+            $params['errors'] = $file_handle->getErrors();
+            $params['msg']    = $file_handle->getMsg();
+            $this->set_ajx_return_logs($params);
+
+            return response()->json($this->ajx_return_logs());
+
+            //return false;
         }
 
         $file_path = $file_handle->getFilePath();
@@ -119,7 +118,7 @@ class AjCsvFileImport
         $this->setFilePath($file_path);
         $this->importFileData($file_handle);
 
-        return response()->json(array('logs'=>$this->logs,'errors'=>$this->errors,'msg'=>$this->msg));
+        return response()->json($this->ajx_return_logs());
 
     }
 
@@ -280,32 +279,32 @@ class AjCsvFileImport
         //echo "<br/>Validating file....";
         //$this->logs[]= "<br/>Validating file....";
         $this->msg = "<br/>Validating file....";
-        $result = $file->isValidFile();
+        $result    = $file->isValidFile();
 
         if ($result !== true) {
 
             if (count($file->getErrors()) >= 0) {
 
                 //$import_libs->printLogs($file->getErrors());
-                array_merge($this->errors,$file->getErrors());
-                
+                array_merge($this->errors, $file->getErrors());
+
             } else {
                 //echo "Invalid File.";
-                $this->msg.=" - Invalid File.";
+                $this->msg .= " - Invalid File.";
                 $this->errors[] = $this->msg;
             }
-            $this->msg ="";
+            $this->msg = "";
             return false;
 
         } else {
 
             /*if (count($file->getLogs()) >= 0) {
 
-                $import_libs->printLogs($file->getLogs());
+            $import_libs->printLogs($file->getLogs());
             }*/
-            $this->msg.=" - Valid File.";
+            $this->msg .= " - Valid File.";
             $this->logs[] = $this->msg;
-            $this->msg ="";
+            $this->msg    = "";
             return true;
         }
 
@@ -512,8 +511,8 @@ class AjCsvFileImport
 
         $qry_load_data = "LOAD DATA LOCAL INFILE '" . $file_path . "' INTO TABLE `" . $temp_tablename . "`
                  FIELDS TERMINATED BY ','
-                OPTIONALLY ENCLOSED BY '\"' 
-                ESCAPED BY '\b'  
+                OPTIONALLY ENCLOSED BY '\"'
+                ESCAPED BY '\b'
                 LINES  TERMINATED BY '\n' IGNORE 1 LINES  ( `";
         $qry_load_data .= implode("`,`", $file_headers) . "` ) ;    ";
 
@@ -624,9 +623,9 @@ class AjCsvFileImport
         }
 
         //echo "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
-        
-        $this->logs[] =  "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
-        return array('logs'=>$this->logs,'errors'=>$this->errors);
+
+        $this->logs[] = "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
+        return array('logs' => $this->logs, 'errors' => $this->errors);
         Log::info("Executing schedule command");
         /* $app          = App::getFacadeRoot();
     $schedule     = $app->make(Schedule::class);
@@ -855,16 +854,13 @@ class AjCsvFileImport
 
         $import_libs = new AjImportlibs();
 
-
         /* If any clumns on temptable needs to be updated by configured set of values from config file*/
 
-        if(isset($child_table_conf['columnupdatevalues'])){
+        if (isset($child_table_conf['columnupdatevalues'])) {
             $columnupdatevalues = $child_table_conf['columnupdatevalues'];
 
-            $this->updateTableFieldBySetOfDtaticValues($temp_tablename, $columnupdatevalues, $limit, $batchsize); 
+            $this->updateTableFieldBySetOfDtaticValues($temp_tablename, $columnupdatevalues, $limit, $batchsize);
         }
-
-
 
         /** If default values has to be set for table insertion take the default values*/
         $child_default_values_string = "";
@@ -927,7 +923,6 @@ class AjCsvFileImport
 
         $child_fields = implode("`,`", $child_fields_ar);
 
-        
         $file_prefix = "aj_" . $child_table_name;
         $folder      = storage_path('app/Ajency/Ajfileimport/validchilddata/');
 
@@ -984,8 +979,8 @@ class AjCsvFileImport
 
         $qry_load_data = "LOAD DATA LOCAL INFILE '" . $file_path . "' INTO TABLE " . $child_table_name . "
          FIELDS TERMINATED BY ','
-        OPTIONALLY ENCLOSED BY '\"' 
-        ESCAPED BY '\b'  
+        OPTIONALLY ENCLOSED BY '\"'
+        ESCAPED BY '\b'
         LINES  TERMINATED BY '\n'    ( `";
         $qry_load_data .= $child_fields . "` ) ";
 
@@ -1044,12 +1039,12 @@ class AjCsvFileImport
             /* update child insert id based on field_maps in config
              * foreach ($field_maps as $tempfield => $childfield) {
 
-                $where_condition .= " AND ";
+            $where_condition .= " AND ";
 
-                $where_condition .= " tmpdata." . $tempfield . "=" . "childtable." . $childfield . "";
-                $cnt_where++;
+            $where_condition .= " tmpdata." . $tempfield . "=" . "childtable." . $childfield . "";
+            $cnt_where++;
             }*/
-            if(isset($child_table_conf['fields_map_to_update_temptable_child_id'])){
+            if (isset($child_table_conf['fields_map_to_update_temptable_child_id'])) {
 
                 Log::info("isset(child_table_conf['fields_map_to_update_temptable_child_id']");
                 $fields_map_to_update_temptable_child_id = $child_table_conf['fields_map_to_update_temptable_child_id'];
@@ -1060,8 +1055,7 @@ class AjCsvFileImport
 
                     $where_condition .= " tmpdata." . $tempfield . "=" . "childtable." . $childfield . "";
                     $cnt_where++;
-                }    
-            
+                }
 
                 $qry_update_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
                 SET
@@ -1086,9 +1080,6 @@ class AjCsvFileImport
                 }
 
             }
-
-
-
 
             /* check if child insert id is mandatary on temporary table, and update the records in the current batch to invalid if the child insert id on temp table is empty */
             if (isset($child_table_conf['is_mandatary_insertid'])) {
@@ -1118,12 +1109,12 @@ class AjCsvFileImport
 
             $string = "Total child count : " . ($total_childs - 1) . " total batches :" . ($total_batches - 1);
 
-          /*  Log::info($qry_update_child_ids);*/
+            /*  Log::info($qry_update_child_ids);*/
             Log::info($string);
 
         }
 
-        if ($current_child_count == ($total_childs - 1) && $loop_count == ($total_batches - 1) ) {
+        if ($current_child_count == ($total_childs - 1) && $loop_count == ($total_batches - 1)) {
 
             Log::info('CALL MASTER INSERT NOW');
             $this->sendErrorLogFile();
@@ -1172,11 +1163,10 @@ class AjCsvFileImport
 
             $qry_select_valid_data .= " UNION ALL ";
 
-
-            $qry_select_valid_data.= "SELECT  * INTO OUTFILE '" . $file_path . "'
+            $qry_select_valid_data .= "SELECT  * INTO OUTFILE '" . $file_path . "'
                                     FIELDS TERMINATED BY ','
                                     OPTIONALLY ENCLOSED BY '\"'
-                                    LINES TERMINATED BY '\n'                                     
+                                    LINES TERMINATED BY '\n'
                                     FROM " . $temp_tablename . " outtable WHERE aj_isvalid='N'";
 
             Log:info($qry_select_valid_data);
@@ -1274,11 +1264,18 @@ class AjCsvFileImport
 
     }
 
+    public function ajx_return_logs()
+    {
 
+        return array('logs' => $this->logs, 'errors' => $this->errors, 'msg' => $this->msg);
+    }
 
-    public function ajx_return_logs(){
+    public function set_ajx_return_logs($params)
+    {
+        $this->logs[]   = $params['logs'];
+        $this->errors[] = $params['errors'];
+        $this->msg      = $this->msg . $params['msg'];
 
-        return array('logs'=>$this->logs,'errors'=>$this->errors,'msg'=>$this->msg);
     }
 
     /* ################################ Test Functions #######################################################*/
@@ -1308,11 +1305,11 @@ class AjCsvFileImport
                 $qry_update1 .= " WHEN " . $column . "='" . $key . "' THEN " . $value . " ";
             }
 
-            $qry_update1 .= " ELSE ".$column." END ) ";
+            $qry_update1 .= " ELSE " . $column . " END ) ";
 
         }
 
-        $qry_update = " UPDATE `" . $tablename . "` tt1 " . $qry_update1." WHERE  tt1.id in (SELECT id FROM (SELECT id FROM " . $tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2  )  AND  tt1.aj_isvalid!='N'";
+        $qry_update = " UPDATE `" . $tablename . "` tt1 " . $qry_update1 . " WHERE  tt1.id in (SELECT id FROM (SELECT id FROM " . $tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2  )  AND  tt1.aj_isvalid!='N'";
 
         Log::info("updateTableFieldBySetOfDtaticValues:-----------------------");
         Log::info($qry_update);

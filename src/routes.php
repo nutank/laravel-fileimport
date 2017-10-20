@@ -11,18 +11,13 @@ Route::get('/tablestructure', 'AjFileImportController@testTableStructure');
 Route::post('/ajuploadfile', 'AjFileImportController@uploadFile');
 Route::get('/ajvalidatefields', 'AjFileImportController@validateFields');
 
-
 Route::get('/ajgetErrorLogs', 'AjFileImportController@getErrorLogs');
 
 Route::get('/ajtestschedule', 'AjFileImportController@testSchedule');
 
 Route::get('/ajtestsendmail', 'AjFileImportController@testSendmail');
 
-
 Route::get('/ajcheckconfigtables', 'AjFileImportController@testConfigTableExists');
-
-
-
 
 Route::get('/ajimportfile', 'AjFileImportController@showUploadFile')->name('showfileupload');
 
@@ -31,18 +26,12 @@ Route::get('/ajviewdataforimport', 'AjFileImportController@downloadTemptableData
 //Route::get('/laraqueue', 'AjFileImportController@send');
 //
 
-
 /*Test routes */
 
-// test ajax function 
- 
-Route::post('/startajimport', 'AjFileImportController@uploadFile') ;
- 
+// test ajax function
 
-Route::post('submit',function(){
-	var_dump(Request::all());
+Route::post('/startajimport', 'AjFileImportController@uploadFile');
+
+Route::post('submit', function () {
+    var_dump(Request::all());
 });
-
-
-
-

@@ -25,7 +25,7 @@ class AjFileImportController extends Controller
     {
 
         $aj_file_import = new AjCsvFileImport();
-        $form_view = $aj_file_import->fileuploadform();
+        $form_view      = $aj_file_import->fileuploadform();
         return $form_view;
 
     }
@@ -42,7 +42,6 @@ class AjFileImportController extends Controller
         $result = $aj_file_import->init($request);
 
         return $result;
-
 
     }
 

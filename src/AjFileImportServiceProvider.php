@@ -4,8 +4,6 @@ namespace Ajency\Ajfileimport;
 
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
-
-//Added to schedule the job queue
 use View;
 
 class AjFileImportServiceProvider extends ServiceProvider
@@ -26,7 +24,7 @@ class AjFileImportServiceProvider extends ServiceProvider
 
         $this->publishes([
             __DIR__ . '/config' => config_path('ajimportdata'),
-            __DIR__.'/public' => public_path('')             
+            __DIR__ . '/public' => public_path(''),
         ]);
 
         /*$this->app->booted(function () {
@@ -43,7 +41,7 @@ class AjFileImportServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+
         //$this->app->make('Ajency\Ajfileimport\AjFileImportController');
 
         $this->mergeConfigFrom(

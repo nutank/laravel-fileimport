@@ -5,7 +5,6 @@ $ajimport_config['delimiter'] = ",";
 $ajimport_config['batchsize'] = "8";
 $ajimport_config['recipient'] = "paragredkar@gmail.com";
 
-
 $ajimport_config['temptablename'] = 'aj_import_temp';
 //$ajimport_config['filepath']  = resource_path('uploads') . "/filetoimport.csv";
 
@@ -132,9 +131,9 @@ $ajimport_config['childtables'][] = array('name' => 'listings',
     'insertid_temptable'                             => array('listings_id' => 'id'),
     'fields_map_to_update_temptable_child_id'        => array("Company_Name" => "title", "areas_id" => "locality_id", "users_id" => "owner_id"),
     'fields_map'                                     => array("Company_Name" => "title", "Add"     => "display_address",
-                                                              "Business_Type"=> "type", "areas_id" => "locality_id", "users_id" => "owner_id",
-                                                              "Reference"    => "reference",
-                                                          ), //'temp table field'=>'child table field'
+        "Business_Type"                                                          => "type", "areas_id" => "locality_id", "users_id" => "owner_id",
+        "Reference"                                                              => "reference",
+    ), //'temp table field'=>'child table field'
     'columnupdatevalues'                             => array('Business_Type' => array("Wholeseller" => 11, "Retailer" => 12, "Manufacturer" => 13)),
 
     /*serialize array form at array('column on tagle'=>array of values to be serialized where key will be a static provided by user and value will be field from temp table)    */

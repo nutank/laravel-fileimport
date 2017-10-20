@@ -19,6 +19,7 @@ class FileHandler
     private $header_matched     = true;
     private $errors             = [];
     private $logs               = [];
+    private $msg                = '';
     private $headers            = [];
 
     public function __construct($param = array())
@@ -31,7 +32,7 @@ class FileHandler
 
     public function getErrors()
     {
-        $this->errors;
+        return $this->errors;
     }
 
     public function getLogs()
@@ -39,20 +40,37 @@ class FileHandler
         return $this->logs;
     }
 
+    public function getMsg()
+    {
+        return $this->msg;
+    }
+
     public function storeFile($request)
     {
 
         if (is_null($request->file('ajfile'))) {
-            echo "Please select file.";
+            //echo "Please select file.";
+            $this->errors[] = "Please select file.";
             return false;
         }
 
         $temp_path = $request->file('ajfile')->getRealPath();
 
         if (!file_exists($temp_path)) {
-            echo "Please select file.";
+            //echo "Please select file.";
+            $this->errors[] = "Please select file.";
             return false;
         }
+
+        $file_extension = $request->file('ajfile')->getClientOriginalExtension(); //File::extension($temp_path);
+
+        $config_file_type = config('ajimportdata.filetype');
+
+        if ($config_file_type != $file_extension) {
+            $this->errors[] = "File extension not supported for import. Please try uploading file of type '" . $config_file_type . "'";
+            return false;
+        }
+
         $new_file_name = 'ajimportfile' . date('d_m_Y_H_i_s') . '.csv';
         $folder        = storage_path('app/Ajency/Ajfileimport/Files/');
 
