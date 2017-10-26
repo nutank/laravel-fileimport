@@ -45,12 +45,19 @@ class FileHandler
         return $this->msg;
     }
 
+    public function getErrorsLogsMsg()
+    {
 
-    public function getErrorsLogsMsg(){
-
-        $data =  array("errors"=>$this->errors, "logs"=>$this->logs, "msg"=>$this->msg);
+        $data = array("errors" => $this->errors, "logs" => $this->logs, "msg" => $this->msg);
     }
 
+    /**
+     * Stores uploaded file in storage folder, which will then be used for import process
+     *
+     * @param      <type>   $request  The request
+     *
+     * @return     string  ( path of uploade file )
+     */
     public function storeFile($request)
     {
 
@@ -82,7 +89,6 @@ class FileHandler
 
         $import_libs = new AjImportlibs();
 
-        //$this->createDirectoryIfDontExists($folder);
         $import_libs->createDirectoryIfDontExists($folder);
 
         $this->file_path = $folder . $new_file_name;
@@ -213,8 +219,6 @@ class FileHandler
 
         return $file_path;
     }
-
-    
 
     /*public function is_directory_exists($filepath)
 {

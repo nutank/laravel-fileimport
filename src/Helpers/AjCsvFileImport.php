@@ -2,7 +2,10 @@
 /**
  * Ajency Laravel CSV Import Package
  * Note : To be used for tables with field names without spaces
- * Read wiki "https://github.com/ajency/laravel-fileimport/wiki" for usage
+ * Read wiki "https://github.com/ajency/laravel-fileimport/wiki" for details and usage
+ * To do :-
+ * a) Support to define multiple import congifuration sets,
+ * and option to select one of the defined configuration while doing import
  *
  */
 namespace Ajency\Ajfileimport\Helpers;
@@ -152,6 +155,9 @@ class AjCsvFileImport
         }
     }
 
+    /**
+     * clear the files from import folders
+     */
     public function clearPreviousImportFiles()
     {
 
@@ -175,8 +181,9 @@ class AjCsvFileImport
     }
 
     /**
-     * Get the configuration added in configurations and stores.
-     * Any header with spaces will be replaces with underscores.
+     * Get the configuration added for tables.
+     * Get the field names cleaned. (replace space in field names with underscores)
+     * Store it in class child configuration variable
      */
     public function setChildTableConf()
     {
@@ -202,6 +209,11 @@ class AjCsvFileImport
 
     }
 
+    /**
+     * Gets the child table conf(spaces in fields names from configuration
+     *   files were replaced with underscores).
+     * @return     array  The child table conf.
+     */
     public function getChildTableConf()
     {
         return $this->childtables_conf;
@@ -311,9 +323,11 @@ class AjCsvFileImport
     }
 
     /**
-     * creates the query part of temp table creation, where fields type/sizes are added in query for temp table Also index part of query
+     * creates the query part of temp table creation, where fields type/sizes, and indexes on fields are
+     * added in query for temp table,
      * Match with child/master table field and get the temp table field in query
-     * temp table field type and sizes are set on mastertable/child table  object of class, when setTableschema is called on the ajtable object of class
+     * temp table field type and sizes are set on mastertable/child table  object of class, when
+     * setTableschema is called on the ajtable object of class
      * @param      <type>   $mastertable_conf  The mastertable conf
      * @param      <type>   $mastertable       The mastertable
      * @param      boolean  $is_child          Indicates if child
@@ -405,9 +419,6 @@ class AjCsvFileImport
 
         $childtables_conf = $this->getChildTableConf(); //config('ajimportdata.childtables'); //Get child table from config
 
-        /* echo "<pre>";
-        dd($childtables_conf );*/
-
         $temp_table_name = config('ajimportdata.temptablename'); //Get temp table name from config
 
         $this->deleteTable($temp_table_name);
@@ -417,10 +428,6 @@ class AjCsvFileImport
 
         $qry_childtable_insert_ids = "";
 
-        /*$mastertable = new AjTable($mastertable_conf['name']);
-        $mastertable->setTableSchema();
-        $is_child_table = false;
-        $qry__create_table .= $this->tempTableQueryByTable($mastertable_conf, $mastertable, $is_child_table);*/
         $qry_indexes = "";
 
         $child_count = 0;
@@ -470,6 +477,7 @@ class AjCsvFileImport
 
         $qry__create_table .= ", `aj_error_log`  LONGTEXT   ";
         $qry__create_table .= ", `aj_isvalid`  CHAR(1) NOT NULL DEFAULT '' ";
+        $qry__create_table .= ", `aj_processed`  CHAR(1) NOT NULL DEFAULT 'n' ";
         $qry__create_table .= ", `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ";
         $qry__create_table .= $qry_indexes;
         $qry__create_table .= " )  ENGINE=InnoDB;";
@@ -995,15 +1003,14 @@ class AjCsvFileImport
         $total_batches       = $params['total_loops'];
         $current_child_count = $params['current_child_count'];
 
+        $batchsize = config('ajimportdata.batchsize');
+        $limit     = $loop_count * $batchsize;
+
         $child_insert_id_on_temp_table = $this->getFormatedFieldName($child_table_conf['name']) . "_id"; // $child_table_conf['insertid_temptable'];
 
         if (isset($child_table_conf['insertid_childtable'])) {
 
             $child_insert_id_field = $child_table_conf['insertid_childtable'];
-
-            $batchsize = config('ajimportdata.batchsize');
-
-            $limit = $loop_count * $batchsize;
 
             $field_maps      = $child_table_conf['fields_map'];
             $cnt_where       = 0;
@@ -1083,11 +1090,14 @@ class AjCsvFileImport
                 }
             }
 
-            $string = "Total child count : " . ($total_childs - 1) . " total batches :" . ($total_batches - 1);
+        }
 
-            /*  Log::info($qry_update_child_ids);*/
-            Log::info($string);
+        $string = "Total child count : " . ($total_childs - 1) . ", current_child_count = " . $current_child_count . " ||  total batches :" . ($total_batches - 1) . ", Limit :" . $limit;
+        Log::info($string);
 
+        //If all the child table configurations are processed for the selected batch, update the temp table records as processed for the selected batch
+        if ($current_child_count >= ($total_childs - 1)) {
+            $this->setProcessed($temp_tablename, $limit, $batchsize);
         }
 
         if ($current_child_count == ($total_childs - 1) && $loop_count == ($total_batches - 1)) {
@@ -1281,6 +1291,36 @@ class AjCsvFileImport
 
         }
 
+    }
+
+    /**
+     * update the selected set of batch with value yes, once all the the child table configurations are processed for the selected set
+     * @param      string  $temp_tablename  The temporary tablename
+     * @param      string  $limit           The limit
+     * @param      string  $batchsize       The batchsize
+     */
+    public function setProcessed($temp_tablename, $limit, $batchsize)
+    {
+
+        Log::info('<br/> \n  setProcessed ');
+        $qry_set_processed = "UPDATE " . $temp_tablename . " tmpdata
+        SET
+            tmpdata.aj_processed = 'y'
+        WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  tmpdata.aj_isvalid!='N'";
+
+        try {
+
+            Log::info($qry_set_processed);
+            Log::info('<br/> \n  setProcessed on temp table   :----------------------------------');
+
+            DB::update($qry_set_processed);
+
+        } catch (\Illuminate\Database\QueryException $ex) {
+
+            // Note any method of class PDOException can be called on $ex.
+            $this->errors[] = $ex->getMessage();
+
+        }
     }
 
     /* ################################ Test Functions #######################################################*/

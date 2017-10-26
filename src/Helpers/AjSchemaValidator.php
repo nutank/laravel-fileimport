@@ -1,12 +1,14 @@
 <?php
+/**
+ * Class to validate the csv data imported to temporary table, based on schema of tables in configuration file
+ */
+
 namespace Ajency\Ajfileimport\Helpers;
 
 use Illuminate\Support\Facades\DB;
 use Log;
 
-/**
- * Class to validate the csv data imported to temporary table, based on master/child table schema
- */
+
 class AjSchemaValidator
 {
 

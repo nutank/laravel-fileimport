@@ -31,7 +31,7 @@ class AjFileImportController extends Controller
     }
 
     /**
-     * Uploads a file.
+     * Uploads a file selected and processes it for import task
      *
      * @param      \Illuminate\Http\Request  $request  The request
      */

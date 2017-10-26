@@ -7,8 +7,11 @@ use Log;
 use Response;
 
 /**
- * Class to validate the csv data imported to temporary table, based on master/child table schema
- * read and set table schema, get primary/unique keys
+ * Read and set table schema( it also inserts type and size of of field
+ * that should be added on temp table) , get primary/unique keys
+ * Download table data as csv file
+ * Before importing data to master or child table, Based on table structure of
+ * master/child table validate each field by length or value in temporary table
  */
 class AjTable
 {
@@ -19,20 +22,6 @@ class AjTable
     private $indexes;
     private $exists = false;
     private $errors = [];
-    /**
-     *To do
-     * For a table,
-     * Update the records on temp table with error on following :--
-     * select records from temporary table whose field value are empty and which should be non null in the main table.
-     * select records from temporary table whose field value not integer and which should be integer in the main table.
-     * select records from temporary table whose field value not double/float and which should be double/float number in the main table.
-     * select records from temporary tables  whose field value are having no of characters greater than the number of characters for corresponding field on main table
-     * select records from the temporary tables whose fields should be unique, and there are multiple records with same value.
-     */
-
-    /*
-     *Before importing data to master or child table, Based on table structure of master/child table validate each field by length or value in temporary table
-     */
 
     public function getFormatedTableHeaderName($header)
     {
@@ -54,9 +43,6 @@ class AjTable
 
             $table_exists = DB::select($qry_table_exists);
 
-            /* echo "<br/> Table exists";
-            print_r($table_exists);*/
-
             if (is_array($table_exists) && count($table_exists) > 0) {
                 $this->exists = true;
             } else {
@@ -66,7 +52,7 @@ class AjTable
             return $this->exists;
 
         } catch (\Illuminate\Database\QueryException $ex) {
-            // Note any method of class PDOException can be called on $ex.
+
             $this->errors[] = $ex->getMessage();
 
             return $this->exists;
@@ -101,9 +87,6 @@ class AjTable
 
             $this->fields = DB::select($qry_table_schema);
 
-            /* $pdo_obj = DB::connection()->getpdo();
-            $result  = $pdo_obj->exec($qry_table_schema); */
-
             foreach ($this->fields as $key => $value) {
 
                 $field_key              = $this->getFormatedTableHeaderName($value->Field);
@@ -114,8 +97,6 @@ class AjTable
             $this->fields = $new_fields;
 
         } catch (\Illuminate\Database\QueryException $ex) {
-
-            // Note any method of class PDOException can be called on $ex.
 
             $this->errors[] = $ex->getMessage();
         }
@@ -131,8 +112,6 @@ class AjTable
     public function setFieldSizeByTablestructure($field)
     {
         $field_type_up = strtoupper($field->Type);
-
-        //echo "<br/>---- " . $field_type_up;
 
         if (strpos($field_type_up, 'TINYINT') !== false) {
             $field->minval           = -128;
@@ -231,15 +210,6 @@ class AjTable
 
                 if ($child_field_value->Key == "PRI" || $child_field_value->Key == "UNI") {
 
-                    /* $child_field_maps = $child_table_conf_list[$child_count]['name'];
-                    $child_field_maps_flipped = array_flip($child_field_maps);
-                    if(isset($child_field_maps_flipped[$child_field_name])){
-
-                    $temp_table_validator = new AjSchemaValidator($temp_tablename);
-                    $temp_table_validator->validatePrimaryUnique($child_field_maps_flipped[$child_field_name]);
-
-                    }*/
-
                     $uniq_fields[] = $child_field_value->Field;
                 }
             }
@@ -293,11 +263,10 @@ class AjTable
             DB::select($qry_select_valid_data);
             $headers = array('Content-Type' => 'text/csv');
 
-            return response()->download($file_path, $this->table_name . date("_d_m_Y_H_i_s").'.csv', $headers);
+            return response()->download($file_path, $this->table_name . date("_d_m_Y_H_i_s") . '.csv', $headers);
 
         } catch (\Illuminate\Database\QueryException $ex) {
 
-            // Note any method of class PDOException can be called on $ex.
             $this->errors[] = $ex->getMessage();
 
         }
