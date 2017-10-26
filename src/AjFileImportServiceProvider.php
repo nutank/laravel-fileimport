@@ -23,7 +23,7 @@ class AjFileImportServiceProvider extends ServiceProvider
         $this->setupRoutes($this->app->router);
 
         $this->publishes([
-            __DIR__ . '/config' => config_path('ajimportdata'),
+            __DIR__ . '/config' => config_path(),
             __DIR__ . '/public' => public_path(''),
         ]);
 

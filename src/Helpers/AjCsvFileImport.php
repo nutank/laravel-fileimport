@@ -264,17 +264,17 @@ class AjCsvFileImport
 
         $result_loadfile = $this->validateFile($file_handle);
         if ($result_loadfile === false) {
-            exit();
+            return $result_loadfile;
         }
 
         $temp_tablename     = config('ajimportdata.temptablename');
         $res_table_creation = $this->createTempTable();
 
         if ($res_table_creation['success'] == false) {
-            foreach ($res_table_creation['errors'] as $key => $error) {
+            /*foreach ($res_table_creation['errors'] as $key => $error) {
                 echo "<br/>" . $error;
-            }
-            return;
+            }*/
+            return false;
         }
 
         $real_file_path = $this->getFilePath();

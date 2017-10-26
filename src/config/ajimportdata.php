@@ -2,8 +2,8 @@
 
 $ajimport_config['filetype']  = "csv";
 $ajimport_config['delimiter'] = ",";
-$ajimport_config['batchsize'] = "8";
-$ajimport_config['recipient'] = "paragredkar@gmail.com";
+$ajimport_config['batchsize'] = "100";
+$ajimport_config['recipient'] = "parag@ajency.in";
 
 $ajimport_config['temptablename'] = 'aj_import_temp';
 //$ajimport_config['filepath']  = resource_path('uploads') . "/filetoimport.csv";
@@ -174,8 +174,8 @@ $ajimport_config['childtables'][] = array('name' => 'user_communications',
 $ajimport_config['childtables'][] = array('name' => 'listing_category',
     'is_mandatary_insertid'                          => 'no',
     'fields_map'                                     => array("listings_id" => "listing_id"), //'temp table field'=>'child table field'
-    'default_values'                                 => array("object_type" => "App\Listing", "type" => "email"), //array("user communication column name"=>"default value for the column")
-    'commafield_to_multirecords'                     => array('Business_Details' => 'category_id'), //Does not support for multiple comma seperated fields into new records as array here. If more than one field is of type comma seperated and needs to be seperate records, add it as seperate childtable record
+    'default_values'                                 => array("object_type" => "App\Listing", "type" => "email"), //array("listing_category column name"=>"default value for the column")
+    'commafield_to_multirecords'                     => array('Business_Details' => 'category_id'), //Field with comma seperated values; Create record for each comma seperated value in the given table namem with field maps. [note: Does not support for multiple comma seperated fields as new records. If more than one field is of type comma seperated and needs to be seperate records, add it as seperate childtable record]
     'default_values'                                 => array("core" => "1"), //array("user communication column name"=>"default value for the column")
 );
 

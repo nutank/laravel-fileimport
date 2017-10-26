@@ -49,6 +49,7 @@ class FileHandler
     {
 
         $data = array("errors" => $this->errors, "logs" => $this->logs, "msg" => $this->msg);
+        return $data;
     }
 
     /**
