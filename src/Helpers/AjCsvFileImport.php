@@ -142,7 +142,7 @@ class AjCsvFileImport
             $pending_job_count = $res_pending_job_count[0]->pending_job_count;
 
             if ($pending_job_count > 0) {
-                $this->errors[] = "There are pending jobs from previous import to be processed!! <br/> Please run job queue <b>'php artisan queue:work --queue=validateunique,insert_records'</b>";
+                $this->errors[] = "There are pending jobs from previous import to be processed!! <br/> Please run job queue <b>'php artisan queue:work --queue=validateunique,insert_records ajfileimportcon'</b>";
                 return true;
             } else {
 
@@ -620,13 +620,13 @@ class AjCsvFileImport
             //echo "<br/>LOOP TEST :" . $loop;
 
             $job_params = array('current_loop_count' => $loop, 'total_loops' => $total_loops, 'type' => 'insert_records');
-            AjImportDataJob::dispatch($job_params)->onQueue('insert_records');
+            AjImportDataJob::dispatch($job_params)->onQueue('insert_records')->onConnection('ajfileimportcon');
 
         }
 
         //echo "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
 
-        $this->logs[] = "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records'  </b>";
+        $this->logs[] = "<br/><br/> <a href='" . route('downloadtemptablecsv') . "' target='_blank' >Click here</a> View the csv import data from ready table. <br/><b>Note: Please run this command to complete the import of data: <br/> 'php artisan queue:work --queue=validateunique,insert_records ajfileimportcon'  </b>";
         return array('logs' => $this->logs, 'errors' => $this->errors);
         Log::info("Executing schedule command");
         /* $app          = App::getFacadeRoot();
@@ -677,7 +677,7 @@ class AjCsvFileImport
 
                 if (isset($child_table_field_map_flip[$child_field_name])) {
                     $job_params = array('childtable' => $child_table_conf_list[$child_count], 'type' => 'validateunique', 'child_field_name' => $child_table_field_map_flip[$child_field_name]);
-                    AjImportDataJob::dispatch($job_params)->onQueue('validateunique');
+                    AjImportDataJob::dispatch($job_params)->onQueue('validateunique')->onConnection('ajfileimportcon');
                 }
 
             }
@@ -1330,7 +1330,7 @@ class AjCsvFileImport
         Log::info("Executing schedule command");
         $app          = App::getFacadeRoot();
         $schedule     = $app->make(Schedule::class);
-        $schedule_res = $schedule->command('queue:work --queue=validateunique,insert_records');
+        $schedule_res = $schedule->command('queue:work --queue=validateunique,insert_records ajfileimportcon');
         echo "<pre>";
         print_r($schedule_res);
     }
