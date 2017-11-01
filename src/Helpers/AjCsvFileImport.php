@@ -137,7 +137,7 @@ class AjCsvFileImport
     {
 
         try {
-            $res_pending_job_count = DB::select("SELECT count(*) as pending_job_count FROM jobs WHERE queue in ('validateunique','insert_records')");
+            $res_pending_job_count = DB::select("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue in ('validateunique','insert_records')");
 
             $pending_job_count = $res_pending_job_count[0]->pending_job_count;
 
