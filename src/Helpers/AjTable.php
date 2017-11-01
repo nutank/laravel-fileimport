@@ -161,8 +161,18 @@ class AjTable
             if (strpos($field_type_up, 'VARCHAR') !== false) {
                 $fieldtype = "VARCHAR";
 
-                $field->tmp_field_type   = 'VARCHAR';
-                $field->tmp_field_length = $field->maxlength + 50;
+
+                if( ($field->maxlength + 50)>255){
+                    $field->tmp_field_type   = 'TEXT';
+                    $field->tmp_field_length = $field->maxlength + 50;    
+                }
+                else{
+                    $field->tmp_field_type   = 'VARCHAR';
+                    $field->tmp_field_length = $field->maxlength + 50;    
+                }
+
+                /*$field->tmp_field_type   = 'VARCHAR';
+                $field->tmp_field_length = $field->maxlength + 50;*/
 
             } else if (strpos($field_type_up, 'CHAR') !== false) {
                 $fieldtype = "CHAR";

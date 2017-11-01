@@ -375,9 +375,17 @@ class AjCsvFileImport
 
                 if (isset($cur_mtable_field->tmp_field_length)) {
 
-                    $qry__create_table .= "(" . $cur_mtable_field->tmp_field_length . ")";
-                    $temptable_fields['maxlength'] = $cur_mtable_field->tmp_field_length;
+                    if($temptable_fields['Type']=="VARCHAR"){
+                        $qry__create_table .= "(" . $cur_mtable_field->tmp_field_length . ")";
+                        $temptable_fields['maxlength'] = $cur_mtable_field->tmp_field_length;
+                    }
+                     
                 }
+
+
+                if(strtoupper($temptable_fields['Type'])=="VARCHAR"   || strtoupper($temptable_fields['Type'])=="TEXT"  ){
+                    $qry__create_table .= " COLLATE utf8mb4_unicode_520_ci ";
+                } 
 
                 if ($cur_mtable_field->Null == true) {
 
@@ -393,7 +401,13 @@ class AjCsvFileImport
 
                 //if child table create index on the field
                 if ($is_child == true) {
-                    $qry__create_table .= ", INDEX `" . $tfield_name . "` (`" . $tfield_name . "` )";
+                    if($temptable_fields['Type']=="TEXT"){
+                        $qry__create_table .= ", INDEX `" . $tfield_name . "` (`" . $tfield_name."`(".$cur_mtable_field->tmp_field_length.") )";  
+                    }
+                    else{
+                        $qry__create_table .= ", INDEX `" . $tfield_name . "` (`" . $tfield_name."` )"; 
+                    }
+                    
                 }
 
                 //$mfield_data = $mastertable_fields[$mfield_key];
