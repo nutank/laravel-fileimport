@@ -8,7 +8,6 @@ namespace Ajency\Ajfileimport\Helpers;
 use Illuminate\Support\Facades\DB;
 use Log;
 
-
 class AjSchemaValidator
 {
 
@@ -114,7 +113,7 @@ class AjSchemaValidator
         /*$qry .= " WHERE aj_isvalid!='N'  AND id in (SELECT id FROM(SELECT id FROM " . $temp_table_name . " ttb2  ORDER BY ttb2.id ASC LIMIT " . $limit . ", " . $batchsize . ")  ttb2 )";*/
         $temp_table_ids_by_batch = $this->getTempTableIdsByBatch($limit, $batchsize);
 
-        $qry .= " WHERE aj_isvalid!='N'  AND id in (".$temp_table_ids_by_batch.")";
+        $qry .= " WHERE aj_isvalid!='N'  AND id in (" . $temp_table_ids_by_batch . ")";
 
         //echo "<br/>" . $qry;
 
@@ -208,16 +207,14 @@ class AjSchemaValidator
         unset($qry_validate_uniq);
     }
 
+    public function getTempTableIdsByBatch($limit, $batchsize)
+    {
 
-
-    public function getTempTableIdsByBatch($limit, $batchsize){
-
-        $temp_tablename      = config('ajimportdata.temptablename');
+        $temp_tablename = config('ajimportdata.temptablename');
 
         try {
 
-            $qry_comma_seperated_temp_ids = "SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM ".$temp_tablename." tt ORDER BY tt.id ASC LIMIT ".$limit.",".$batchsize.")  tt2 ";
-
+            $qry_comma_seperated_temp_ids = "SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ")  tt2 ";
 
             Log:info($qry_comma_seperated_temp_ids);
             $res_comma_seperated_temp_ids = DB::select($qry_comma_seperated_temp_ids);
@@ -231,9 +228,5 @@ class AjSchemaValidator
         }
 
     }
-
-
-
-
 
 }

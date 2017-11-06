@@ -15,9 +15,7 @@ use Ajency\Ajfileimport\Helpers\AjSchemaValidator;
 use Ajency\Ajfileimport\Helpers\AjTable;
 //Added to schedule the job queue
 use Ajency\Ajfileimport\jobs\AjImportDataJob;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB; //files storage for import
 use Illuminate\Support\Facades\File;
 use Log;
@@ -139,7 +137,7 @@ class AjCsvFileImport
         try {
             $res_pending_job_count = DB::select("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue in ('validateunique','insert_records')");
 
-Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue in ('validateunique','insert_records')");
+            Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue in ('validateunique','insert_records')");
             $pending_job_count = $res_pending_job_count[0]->pending_job_count;
 
             if ($pending_job_count > 0) {
@@ -273,7 +271,7 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
 
         if ($res_table_creation['success'] == false) {
             /*foreach ($res_table_creation['errors'] as $key => $error) {
-                echo "<br/>" . $error;
+            echo "<br/>" . $error;
             }*/
             return false;
         }
@@ -430,7 +428,7 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
         $qry_childtable_insert_ids = "";
 
         $qry_indexes = "";
-        $qry_slug = "";
+        $qry_slug    = "";
 
         $child_count = 0;
         foreach ($childtables_conf as $child_data) {
@@ -862,7 +860,6 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
             $this->updateTableFieldBySlug($temp_tablename, $field_slug, $limit, $batchsize);
         }
 
-
         /** If default values has to be set for table insertion take the default values*/
         $child_default_values_string = "";
         if (isset($child_table_conf['default_values'])) {
@@ -927,7 +924,7 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
         $file_prefix = "aj_" . $child_table_name;
         //$folder      = storage_path('app/Ajency/Ajfileimport/validchilddata/');
         //$folder      = storage_path('app/Ajency/');
-        $folder      = $import_libs->getMysqlTempDirectory()."/Ajency";
+        $folder = $import_libs->getMysqlTempDirectory() . "/Ajency";
 
         $import_libs->createDirectoryIfDontExists($folder);
 
@@ -996,7 +993,7 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
             $job_params_update_child_id = array('childtable' => $child_table_conf, 'current_loop_count' => $loop_count, 'type' => 'tempupdatechildid', 'total_childs' => $total_childs, 'total_loops' => $total_batches, 'current_child_count' => $current_child_count);
 
             //if($loop_count==0 && $current_child_count==0){
-                $this->UpdateTempTableWithChildInsertIds($job_params_update_child_id);
+            $this->UpdateTempTableWithChildInsertIds($job_params_update_child_id);
             //}
 
             //AjImportDataJob::dispatch($job_params_update_child_id)->onQueue('tempupdatechildid');
@@ -1064,18 +1061,15 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
                     $cnt_where++;
                 }
 
-
-
-
                 /*$qry_update_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
                 SET
-                    tmpdata." . $child_insert_id_on_temp_table . " = childtable." . $child_insert_id_field . "
+                tmpdata." . $child_insert_id_on_temp_table . " = childtable." . $child_insert_id_field . "
                 WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  tmpdata.aj_isvalid!='N'" . $where_condition;*/
 
                 $qry_update_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
                 SET
                     tmpdata." . $child_insert_id_on_temp_table . " = childtable." . $child_insert_id_field . "
-                WHERE  tmpdata.id in (".$temp_table_ids_by_batch.")  AND  tmpdata.aj_isvalid!='N'" . $where_condition;
+                WHERE  tmpdata.id in (" . $temp_table_ids_by_batch . ")  AND  tmpdata.aj_isvalid!='N'" . $where_condition;
 
                 try {
 
@@ -1102,9 +1096,9 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
             if (isset($child_table_conf['is_mandatary_insertid'])) {
                 if ($child_table_conf['is_mandatary_insertid'] == "yes") {
                     /*$qry_update_failed_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
-                        SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  AND   tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )   AND  tmpdata.aj_isvalid!='N'";*/
+                    SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  AND   tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )   AND  tmpdata.aj_isvalid!='N'";*/
                     $qry_update_failed_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
-                        SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  AND   tmpdata.id in (".$temp_table_ids_by_batch.")   AND  tmpdata.aj_isvalid!='N'";
+                        SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  AND   tmpdata.id in (" . $temp_table_ids_by_batch . ")   AND  tmpdata.aj_isvalid!='N'";
 
                     try {
 
@@ -1150,18 +1144,14 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
 
     }
 
+    public function getTempTableIdsByBatch($limit, $batchsize)
+    {
 
-
-
-
-    public function getTempTableIdsByBatch($limit, $batchsize){
-
-        $temp_tablename      = config('ajimportdata.temptablename');
+        $temp_tablename = config('ajimportdata.temptablename');
 
         try {
 
-            $qry_comma_seperated_temp_ids = "SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM ".$temp_tablename." tt ORDER BY tt.id ASC LIMIT ".$limit.",".$batchsize.")  tt2 ";
-
+            $qry_comma_seperated_temp_ids = "SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ")  tt2 ";
 
             Log:info($qry_comma_seperated_temp_ids);
             $res_comma_seperated_temp_ids = DB::select($qry_comma_seperated_temp_ids);
@@ -1187,9 +1177,9 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
 
         $temp_tablename = config('ajimportdata.temptablename');
         $file_prefix    = "aj_errorlog";
-       // $folder         = storage_path('app/Ajency/Ajfileimport/errorlogs/');
+        // $folder         = storage_path('app/Ajency/Ajfileimport/errorlogs/');
         //$folder         = storage_path('app/Ajency/');
-        $folder         = $import_libs->getMysqlTempDirectory()."/Ajency";
+        $folder = $import_libs->getMysqlTempDirectory() . "/Ajency";
 
         $import_libs->createDirectoryIfDontExists($folder);
 
@@ -1309,16 +1299,12 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
             $this->errors[] = $error_string;
             return false;
 
-
-
         } catch (\Illuminate\Database\QueryException $ex) {
 
             $this->errors[] = $ex->getMessage();
             return false;
 
         }
-
-
 
     }
 
@@ -1333,7 +1319,7 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
     public function updateTableFieldBySetOfDtaticValues($tablename, $columnupdatevalues, $limit, $batchsize)
     {
 
-        $qry_update1 = "";
+        $qry_update1             = "";
         $temp_table_ids_by_batch = $this->getTempTableIdsByBatch($limit, $batchsize);
 
         foreach ($columnupdatevalues as $column => $colvalues) {
@@ -1349,7 +1335,7 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
         }
 
         /*$qry_update = " UPDATE `" . $tablename . "` tt1 " . $qry_update1 . " WHERE  tt1.id in (SELECT id FROM (SELECT id FROM " . $tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2  )  AND  tt1.aj_isvalid!='N'";*/
-        $qry_update = " UPDATE `" . $tablename . "` tt1 " . $qry_update1 . " WHERE  tt1.id in (".$temp_table_ids_by_batch.")  AND  tt1.aj_isvalid!='N'";
+        $qry_update = " UPDATE `" . $tablename . "` tt1 " . $qry_update1 . " WHERE  tt1.id in (" . $temp_table_ids_by_batch . ")  AND  tt1.aj_isvalid!='N'";
 
         Log::info("updateTableFieldBySetOfDtaticValues:-----------------------");
         Log::info($qry_update);
@@ -1378,14 +1364,12 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
         Log::info('<br/> \n  setProcessed ');
         /*$qry_set_processed = "UPDATE " . $temp_tablename . " tmpdata
         SET
-            tmpdata.aj_processed = 'y'
+        tmpdata.aj_processed = 'y'
         WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )  AND  tmpdata.aj_isvalid!='N'";*/
         $qry_set_processed = "UPDATE " . $temp_tablename . " tmpdata
         SET
             tmpdata.aj_processed = 'y'
-        WHERE  tmpdata.id in (".$temp_table_ids_by_batch.")  AND  tmpdata.aj_isvalid!='N'";
-
-
+        WHERE  tmpdata.id in (" . $temp_table_ids_by_batch . ")  AND  tmpdata.aj_isvalid!='N'";
 
         try {
 
@@ -1402,10 +1386,6 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
         }
     }
 
-
-
-
-
     public function updateTableFieldBySlug($tablename, $field_slug, $limit, $batchsize)
     {
 
@@ -1415,11 +1395,11 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
 
         foreach ($field_slug as $key_slug => $key_val) {
 
-           $qry_update1.= "tt1.".$key_val."= REPLACE(LOWER(tt1.".$key_slug."),' ','-')";
+            $qry_update1 .= "tt1." . $key_val . "= REPLACE(LOWER(tt1." . $key_slug . "),' ','-')";
 
         }
 
-        $qry_update = " UPDATE `" . $tablename . "` tt1 " . $qry_update1 . " WHERE  tt1.id in (".$temp_table_ids_by_batch.")  AND  tt1.aj_isvalid!='N'";
+        $qry_update = " UPDATE `" . $tablename . "` tt1 " . $qry_update1 . " WHERE  tt1.id in (" . $temp_table_ids_by_batch . ")  AND  tt1.aj_isvalid!='N'";
 
         Log::info("updateTableFieldBySlug:-----------------------");
         Log::info($qry_update);
@@ -1438,19 +1418,18 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
 
     public function testSchedule()
     {
-       /* Log::info("Executing schedule command");
+        /* Log::info("Executing schedule command");
         $app          = App::getFacadeRoot();
         $schedule     = $app->make(Schedule::class);
         $schedule_res = $schedule->command('queue:work --queue=validateunique,insert_records ajfileimportcon');
         echo "<pre>";
         print_r($schedule_res);*/
- DB::connection()->enableQueryLog();
+        DB::connection()->enableQueryLog();
 
- echo"m i really here?";
+        echo "m i really here?";
 
 //SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM aj_import_temp tt ORDER BY tt.id ASC LIMIT 0,100)  tt2
-//UPDATE aj_import_temp AS tmpdata, users AS childtable SET tmpdata.users_id = childtable.id  WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM aj_import_temp tt ORDER BY tt.id ASC LIMIT 0,100) tt2 )  AND  tmpdata.aj_isvalid!='N'  AND  tmpdata.Email1=childtable.email
-
+        //UPDATE aj_import_temp AS tmpdata, users AS childtable SET tmpdata.users_id = childtable.id  WHERE  tmpdata.id in (SELECT id FROM (SELECT id FROM aj_import_temp tt ORDER BY tt.id ASC LIMIT 0,100) tt2 )  AND  tmpdata.aj_isvalid!='N'  AND  tmpdata.Email1=childtable.email
 
         $qry_update_child_ids = "UPDATE aj_import_temp  tmpdata, users  childtable, (SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM aj_import_temp tt ORDER BY tt.id ASC LIMIT 0,100)  tt2 )  tt3 SET
             tmpdata.users_id = childtable.id
@@ -1458,30 +1437,28 @@ Log:info("SELECT count(*) as pending_job_count FROM aj_import_jobs WHERE queue i
 
         /*try {*/
 
-            Log::info('<br/> \n  UPDATER child ids() on temp table   :----------------------------------');
+        Log::info('<br/> \n  UPDATER child ids() on temp table   :----------------------------------');
 
-            Log::info($qry_update_child_ids);
-            Log::info('STATEMENT NOW : res_update===============================');
-            $res_update = DB::statement($qry_update_child_ids);
+        Log::info($qry_update_child_ids);
+        Log::info('STATEMENT NOW : res_update===============================');
+        $res_update = DB::statement($qry_update_child_ids);
 
-dd(DB::getQueryLog());
+        dd(DB::getQueryLog());
 
+        $queries = DB::getQueryLog();
 
-            $queries = DB::getQueryLog();
+        Log::info($queries);
 
-            Log::info($queries);
+        //update valid rows in temp table with the valid inserts on child table.
 
-            //update valid rows in temp table with the valid inserts on child table.
+        /* } catch (\Illuminate\Database\QueryException $ex) {
 
-       /* } catch (\Illuminate\Database\QueryException $ex) {
+    // Note any method of class PDOException can be called on $ex.
+    $this->errors[] = $ex->getMessage();
 
-            // Note any method of class PDOException can be called on $ex.
-            $this->errors[] = $ex->getMessage();
+    dd($this->errors);
 
-
-            dd($this->errors);
-
-        }*/
+    }*/
     }
     /* ################################ Test Functions #######################################################*/
 

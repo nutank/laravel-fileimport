@@ -4,8 +4,8 @@
 namespace Ajency\Ajfileimport\Helpers;
 
 use Ajency\Ajfileimport\Mail\AjSendMail;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use \Mail;
 
 /**
@@ -135,9 +135,8 @@ class AjImportlibs
 
     }
 
-
-    public function getMysqlTempDirectory(){
-
+    public function getMysqlTempDirectory()
+    {
 
         $qry_get_mysql_temp_directory = "SHOW VARIABLES LIKE 'tmpdir'";
         $res_get_mysql_temp_directory = DB::select($qry_get_mysql_temp_directory);
