@@ -5,11 +5,12 @@ Route::get('/ajimportfile', 'AjFileImportController@showUploadFile')->name('show
 
 Route::get('/ajviewdataforimport', 'AjFileImportController@downloadTemptableDataCsv')->name('downloadtemptablecsv');
 
- 
+
 
 /*Test routes */
 
 // test ajax function
+Route::get('/testschedule', 'AjFileImportController@testSchedule');
 
 Route::post('/startajimport', 'AjFileImportController@uploadFile');
 

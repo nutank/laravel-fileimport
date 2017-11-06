@@ -5,6 +5,7 @@ namespace Ajency\Ajfileimport\Helpers;
 
 use Ajency\Ajfileimport\Mail\AjSendMail;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\DB;
 use \Mail;
 
 /**
@@ -131,6 +132,18 @@ class AjImportlibs
     $message->from(env('MAIL_FROM'), env('MAIL_FROM_NAME'));
     $message->to('paragredkar@ajency.in','paragredkar')->subject('daily project mail');
     });*/
+
+    }
+
+
+    public function getMysqlTempDirectory(){
+
+
+        $qry_get_mysql_temp_directory = "SHOW VARIABLES LIKE 'tmpdir'";
+        $res_get_mysql_temp_directory = DB::select($qry_get_mysql_temp_directory);
+        foreach ($res_get_mysql_temp_directory as $res_v) {
+            return $res_v->Value;
+        }
 
     }
 
