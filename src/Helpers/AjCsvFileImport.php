@@ -54,6 +54,13 @@ class AjCsvFileImport
 
         $import_libs = new AjImportlibs();
 
+        $this->msg               = "<br/> Checking the file permissions ....";
+        $result_file_permissions = $import_libs->createTestImportFolder();
+        if ($result_file_permissions['error'] == false) {
+            $this->set_ajx_return_logs($result_file_permissions);
+            return response()->json($this->ajx_return_logs());
+        }
+
         $this->msg = "<br/> Checking for pending FileImport pending jobs ...";
 
         $prev_pending_jobs = $this->areTherePreviousJobsPending();
@@ -1380,7 +1387,32 @@ class AjCsvFileImport
 
         } catch (\Illuminate\Database\QueryException $ex) {
 
-            // Note any method of class PDOException can be called on $ex.
+            $this->errors[] = $ex->getMessage();
+
+        }
+    }
+
+    public function setBatchInvalidData($temp_tablename, $limit, $batchsize, $error_msg)
+    {
+        $temp_tablename = config('ajimportdata.temptablename');
+        
+        $temp_table_ids_by_batch = $this->getTempTableIdsByBatch($limit, $batchsize);
+
+        $qry_set_invalid = "UPDATE " . $temp_tablename . " tmpdata
+                                SET
+                                    tmpdata.aj_isvalid = 'N',
+                                    tmpdata.aj_error_log = '" . $error_msg . "'
+                                WHERE  tmpdata.id in (" . $temp_table_ids_by_batch . ")  AND  tmpdata.aj_isvalid!='N'";
+
+        try {
+
+            Log::info($qry_set_invalid);
+            Log::info('<br/> \n  setBatchInvalidData   :----------------------------------');
+
+            DB::update($qry_set_invalid);
+
+        } catch (\Illuminate\Database\QueryException $ex) {
+
             $this->errors[] = $ex->getMessage();
 
         }

@@ -146,4 +146,59 @@ class AjImportlibs
 
     }
 
-}
+    public function createTestImportFolder()
+    {
+
+        $mysql_temp_dir = $this->getMysqlTempDirectory();
+
+        if ($mysql_temp_dir == "" || is_null($mysql_temp_dir)) {
+            return array('result' => false, 'errors' => 'Mysql Temp directory is not set. Cannot proceed with import');
+        }
+
+        $ajency_folder = $this->getMysqlTempDirectory() . "/Ajency";
+
+        if (!$this->is_directory_exists($ajency_folder)) {
+
+            $this->createDirectoryIfDontExists($ajency_folder);
+        }
+
+        if ($this->is_directory_exists($ajency_folder)) {
+
+            $file_prefix           = "aj_test_file_create_";
+
+            $test_export_file_path = $import_libs->generateUniqueOutfileName($file_prefix, $folder);
+
+            $file_path = str_replace("\\", "\\\\", $test_export_file_path);
+
+            $qry_test = "SELECT  test_id, test_name INTO OUTFILE '" . $file_path . "'
+                                    FIELDS TERMINATED BY ','
+                                    OPTIONALLY ENCLOSED BY '\"'
+                                    LINES TERMINATED BY '\n'";
+            try {
+
+                Log:info($qry_test);
+                DB::select($qry_test);
+
+                if (!File::exists($test_export_file_path)) {
+                    return array('result' => false, 'errors' => array("'" . $ajency_folder . "' Folder does not have write permission. Cannot proceed with import");
+                    } else {
+                        return array('result' => true);
+                    }
+
+                } catch (\Illuminate\Database\QueryException $ex) {
+
+                    return array('result' => false, 'errors' => array($ex->getMessage()));
+
+                }
+
+            }
+            else {
+                return array('result'=>false ,'errors'=>array('Directory is not writable') ) ;
+            }
+
+
+
+             
+        }
+
+    }
