@@ -595,6 +595,11 @@ class AjCsvFileImport
         $mtablevalidator->validateFieldLength('email', $params);
     }
 
+    /**
+     * Adds a job queue by batches in jobs table
+     *
+     * @return   array of logs and errors(  array('logs' => array('msg'), 'errors' => array('error msg')))
+     */
     public function addJobQueue()
     {
 
@@ -1019,6 +1024,11 @@ class AjCsvFileImport
 
     }
 
+    /**
+     *  Update temp table with the insert ids from the child table for given child table batch
+     *
+     * @param      <type>  $params  array('childtable','current_loop_count','total_childs','total_loops','current_child_count')
+     */
     public function UpdateTempTableWithChildInsertIds($params)
     {
 
@@ -1095,6 +1105,10 @@ class AjCsvFileImport
                     // Note any method of class PDOException can be called on $ex.
                     $this->errors[] = $ex->getMessage();
 
+                    $msg_log = json_encode(array('table'=>$child_table_conf['name'], 'limit'=>$limit, 'batchsize'=>$batchsize, 'errormsg'=>$ex->getMessage() )) ;
+
+                    $this->setBatchInvalidData($temp_tablename, $limit, $batchsize, $msg_log);
+
                 }
 
             }
@@ -1139,13 +1153,8 @@ class AjCsvFileImport
 
         if ($current_child_count == ($total_childs - 1) && $loop_count == ($total_batches - 1)) {
 
-            Log::info('CALL MASTER INSERT NOW');
+            Log::info('Import done. mailing error log file');
             $this->sendErrorLogFile();
-
-            //$this->process_masterinsert_queue($params);
-
-        } else {
-            Log::info('DO NOT CALL MASTER INSERT NOW');
 
         }
 
@@ -1395,7 +1404,7 @@ class AjCsvFileImport
     public function setBatchInvalidData($temp_tablename, $limit, $batchsize, $error_msg)
     {
         $temp_tablename = config('ajimportdata.temptablename');
-        
+
         $temp_table_ids_by_batch = $this->getTempTableIdsByBatch($limit, $batchsize);
 
         $qry_set_invalid = "UPDATE " . $temp_tablename . " tmpdata
