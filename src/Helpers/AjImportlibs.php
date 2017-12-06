@@ -180,9 +180,9 @@ class AjImportlibs
                 DB::select($qry_test);
 
                 if (!File::exists($test_export_file_path)) {
-                    return array('result' => false, 'errors' => array("'" . $ajency_folder . "' Folder does not have write permission. Cannot proceed with import");
+                    return array('result' => false, 'errors' => array("'" . $ajency_folder . "' Folder does not have write permission. Cannot proceed with import"));
                     } else {
-                        return array('result' => true);
+                        return array('result' => true,'errors' =>false);
                     }
 
                 } catch (\Illuminate\Database\QueryException $ex) {

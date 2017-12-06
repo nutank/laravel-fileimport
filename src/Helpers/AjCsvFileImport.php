@@ -56,7 +56,7 @@ class AjCsvFileImport
 
         $this->msg               = "<br/> Checking the file permissions ....";
         $result_file_permissions = $import_libs->createTestImportFolder();
-        if ($result_file_permissions['error'] == false) {
+        if ($result_file_permissions['errors'] == false) {
             $this->set_ajx_return_logs($result_file_permissions);
             return response()->json($this->ajx_return_logs());
         }
