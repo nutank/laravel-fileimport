@@ -166,7 +166,7 @@ class AjImportlibs
 
             $file_prefix           = "aj_test_file_create_";
 
-            $test_export_file_path = $import_libs->generateUniqueOutfileName($file_prefix, $folder);
+            $test_export_file_path = $this->generateUniqueOutfileName($file_prefix, $ajency_folder);
 
             $file_path = str_replace("\\", "\\\\", $test_export_file_path);
 
