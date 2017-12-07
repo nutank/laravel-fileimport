@@ -87,9 +87,10 @@ class AjCsvFileImport
             $this->logs[] = $this->msg;
 
         } else {
-            $import_libs->printLogs($this->getErrorLogs());
+            //$import_libs->printLogs($this->getErrorLogs());
             $this->msg .= " Failed ";
             $this->logs[] = $this->msg;
+            $this->msg    = "";
             return response()->json($this->ajx_return_logs());
 
         }
@@ -825,7 +826,14 @@ class AjCsvFileImport
 
     }
 
-    //public function exportValidTemptableDataToFile($child_table_conf, $temp_tablename, $loop_count)
+    /**
+     * public function exportValidTemptableDataToFile($child_table_conf, $temp_tablename, $loop_count)
+    Load valid data from temp table into child table by batch
+     *
+     * @param      <array>  $child_table_conf  The child table conf
+     *
+     */
+
     public function exportValidTemptableDataToFile($params)
     {
 
@@ -985,6 +993,10 @@ class AjCsvFileImport
             // Note any method of class PDOException can be called on $ex.
             $this->errors[] = $ex->getMessage();
 
+            $msg_log = json_encode(array('table' => $child_table_conf['name'], 'limit' => $limit, 'batchsize' => $batchsize, 'errormsg' => "Insert failed: " . $ex->getMessage()));
+
+            $this->setBatchInvalidData($temp_tablename, $limit, $batchsize, $msg_log);
+
         }
 
         //Load valid data from temp table into child table
@@ -1017,6 +1029,10 @@ class AjCsvFileImport
             Log::info($ex);
 
             Log::info("**********************************ERROR************************************");
+
+            $msg_log = json_encode(array('table' => $child_table_conf['name'], 'limit' => $limit, 'batchsize' => $batchsize, 'errormsg' => "Insert failed: " . $ex->getMessage()));
+
+            $this->setBatchInvalidData($temp_tablename, $limit, $batchsize, $msg_log);
 
         }
 
@@ -1105,7 +1121,7 @@ class AjCsvFileImport
                     // Note any method of class PDOException can be called on $ex.
                     $this->errors[] = $ex->getMessage();
 
-                    $msg_log = json_encode(array('table'=>$child_table_conf['name'], 'limit'=>$limit, 'batchsize'=>$batchsize, 'errormsg'=>$ex->getMessage() )) ;
+                    $msg_log = json_encode(array('table' => $child_table_conf['name'], 'limit' => $limit, 'batchsize' => $batchsize, 'errormsg' => $ex->getMessage()));
 
                     $this->setBatchInvalidData($temp_tablename, $limit, $batchsize, $msg_log);
 
@@ -1119,7 +1135,7 @@ class AjCsvFileImport
                     /*$qry_update_failed_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
                     SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  AND   tmpdata.id in (SELECT id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ") tt2 )   AND  tmpdata.aj_isvalid!='N'";*/
                     $qry_update_failed_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
-                        SET tmpdata.aj_isvalid ='N', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  AND   tmpdata.id in (" . $temp_table_ids_by_batch . ")   AND  tmpdata.aj_isvalid!='N'";
+                        SET tmpdata.aj_isvalid ='N', aj_processed ='y', aj_error_log ='insert on child table " . $child_table_conf['name'] . " Failed '  WHERE (tmpdata." . $child_insert_id_on_temp_table . "='' || tmpdata." . $child_insert_id_on_temp_table . "=0 || tmpdata." . $child_insert_id_on_temp_table . " is NULL )  AND   tmpdata.id in (" . $temp_table_ids_by_batch . ")   AND  tmpdata.aj_isvalid!='N'";
 
                     try {
 
@@ -1271,6 +1287,7 @@ class AjCsvFileImport
     {
 
         $result_array_diff = array();
+        $arr_config_tables = array();
 
         if (!isset($this->childtables_conf)) {
             $this->setChildTableConf();
@@ -1280,7 +1297,10 @@ class AjCsvFileImport
 
         for ($cnt = 0; $cnt < $total_config_table_count; $cnt++) {
 
-            $arr_config_tables[] = $this->childtables_conf[$cnt]['name'];
+            if (!in_array($this->childtables_conf[$cnt]['name'], $arr_config_tables)) {
+                $arr_config_tables[] = $this->childtables_conf[$cnt]['name'];
+            }
+
         }
 
         $qry_table_list = "SHOW TABLES";
@@ -1410,6 +1430,7 @@ class AjCsvFileImport
         $qry_set_invalid = "UPDATE " . $temp_tablename . " tmpdata
                                 SET
                                     tmpdata.aj_isvalid = 'N',
+                                    tmpdata.aj_processed ='y',
                                     tmpdata.aj_error_log = '" . $error_msg . "'
                                 WHERE  tmpdata.id in (" . $temp_table_ids_by_batch . ")  AND  tmpdata.aj_isvalid!='N'";
 
