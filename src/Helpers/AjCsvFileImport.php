@@ -1090,8 +1090,9 @@ class AjCsvFileImport
 
                     $where_condition .= " AND ";
 
-                    $where_condition .= " tmpdata." . $tempfield . " COLLATE utf8_general_ci = " . "childtable." . $childfield . " COLLATE 
- utf8_general_ci ";
+                    /*$where_condition .= " tmpdata." . $tempfield . " COLLATE utf8_general_ci = " . "childtable." . $childfield . " COLLATE 
+ utf8_general_ci ";*/
+                    $where_condition .= " tmpdata." . $tempfield . "  = " . "childtable." . $childfield . " ";
                     $cnt_where++;
                 }
 
