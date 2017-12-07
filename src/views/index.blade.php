@@ -1,4 +1,4 @@
-<form action="/startajimport" method="post" enctype="multipart/form-data" id="aj_frm_uploadfile">
+<form action="/aj/startajimport" method="post" enctype="multipart/form-data" id="aj_frm_uploadfile">
     {{ csrf_field() }}
 
     <br />
