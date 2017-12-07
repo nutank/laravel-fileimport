@@ -214,12 +214,29 @@ class AjSchemaValidator
 
         try {
 
-            $qry_comma_seperated_temp_ids = "SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ")  tt2 ";
+           /* $qry_comma_seperated_temp_ids = "SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ")  tt2 ";
 
             Log:info($qry_comma_seperated_temp_ids);
             $res_comma_seperated_temp_ids = DB::select($qry_comma_seperated_temp_ids);
 
-            return $res_comma_seperated_temp_ids[0]->concat_ids;
+            return $res_comma_seperated_temp_ids[0]->concat_ids;*/
+
+            //No GROUP_CONCAT because of string limit 
+            $qry_comma_seperated_temp_ids = "SELECT id as concat_id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ")  tt2 ";
+
+            Log:info($qry_comma_seperated_temp_ids);
+            $res_comma_seperated_temp_ids = DB::select($qry_comma_seperated_temp_ids);     
+            $count_comma_seperated_temp_ids  = count($res_comma_seperated_temp_ids);
+            if($count_comma_seperated_temp_ids>0){
+                for($cnt=0;$cnt<$count_comma_seperated_temp_ids;$cnt++){
+                    $temp_table_ids[] = $res_comma_seperated_temp_ids[$cnt]->concat_id;     
+                }
+                
+            }
+
+            $temp_table_concat_ids = implode(",",$temp_table_ids);
+            
+            return $temp_table_concat_ids;
 
         } catch (\Illuminate\Database\QueryException $ex) {
 

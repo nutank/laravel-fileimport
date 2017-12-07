@@ -1090,7 +1090,8 @@ class AjCsvFileImport
 
                     $where_condition .= " AND ";
 
-                    $where_condition .= " tmpdata." . $tempfield . "=" . "childtable." . $childfield . "";
+                    $where_condition .= " tmpdata." . $tempfield . " COLLATE utf8_general_ci = " . "childtable." . $childfield . " COLLATE 
+ utf8_general_ci ";
                     $cnt_where++;
                 }
 
@@ -1101,7 +1102,7 @@ class AjCsvFileImport
 
                 $qry_update_child_ids = "UPDATE " . $temp_tablename . " tmpdata, " . $child_table_conf['name'] . " childtable
                 SET
-                    tmpdata." . $child_insert_id_on_temp_table . " = childtable." . $child_insert_id_field . "
+                    tmpdata." . $child_insert_id_on_temp_table . " =  CAST(childtable." . $child_insert_id_field . " as CHAR(50)) 
                 WHERE  tmpdata.id in (" . $temp_table_ids_by_batch . ")  AND  tmpdata.aj_isvalid!='N'" . $where_condition;
 
                 try {
@@ -1180,15 +1181,31 @@ class AjCsvFileImport
     {
 
         $temp_tablename = config('ajimportdata.temptablename');
+        $temp_table_ids = array();
 
         try {
 
-            $qry_comma_seperated_temp_ids = "SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ")  tt2 ";
+            /*$qry_comma_seperated_temp_ids = "SELECT GROUP_CONCAT(id) as concat_ids FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ")  tt2 "; 
+            $res_comma_seperated_temp_ids = DB::select($qry_comma_seperated_temp_ids); 
+            return $res_comma_seperated_temp_ids[0]->concat_ids;*/
+
+            //No GROUP_CONCAT because of string limit 
+            $qry_comma_seperated_temp_ids = "SELECT id as concat_id FROM (SELECT id FROM " . $temp_tablename . " tt ORDER BY tt.id ASC LIMIT " . $limit . "," . $batchsize . ")  tt2 ";
 
             Log:info($qry_comma_seperated_temp_ids);
-            $res_comma_seperated_temp_ids = DB::select($qry_comma_seperated_temp_ids);
+            $res_comma_seperated_temp_ids = DB::select($qry_comma_seperated_temp_ids);     
+            $count_comma_seperated_temp_ids  = count($res_comma_seperated_temp_ids);
+            if($count_comma_seperated_temp_ids>0){
+                for($cnt=0;$cnt<$count_comma_seperated_temp_ids;$cnt++){
+                    $temp_table_ids[] = $res_comma_seperated_temp_ids[$cnt]->concat_id;     
+                }
+                
+            }
 
-            return $res_comma_seperated_temp_ids[0]->concat_ids;
+            $temp_table_concat_ids = implode(",",$temp_table_ids);
+            return $temp_table_concat_ids;
+
+
 
         } catch (\Illuminate\Database\QueryException $ex) {
 
